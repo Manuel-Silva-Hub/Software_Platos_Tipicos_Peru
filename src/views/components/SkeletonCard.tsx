@@ -3,7 +3,6 @@
  * Simple skeleton placeholder for dish card while loading.
  */
 
-import React from 'react';
 
 export function SkeletonCard() {
   return (
