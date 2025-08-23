@@ -1,35 +1,58 @@
+// src/controllers/useDishesController.ts
 import { useEffect, useState } from 'react';
-import { getAllDishes } from '../repositories/dishRepository';
+import { supabase } from '../services/supabase';
 import type { Dish } from '../models/dish';
 
-/**
-This useDishesController() method or Custom hook is used to manage the loading of dishes from the API.
-It handles:
- - Retrieving dishes using `getAllDishes`.
- - Controlling the loading status (`loading`).
- - Handling errors (`error`).
- * */
 export function useDishesController() {
   const [dishes, setDishes] = useState<Dish[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    try {
-      setLoading(true); // Activate the charging state
-      const data = await getAllDishes(); // Call the getAllDishes() function (which queries the API or repository)
-      setDishes(data); // Updates the status with the received data
-    } catch (e: any) {
-      setError(e.message ?? 'Error cargando datos'); // If an error occurs, save the message
-    } finally {
-      setLoading(false); //Finally, turn off the charging state
-    }
-  }
-  
- //This executes the loading only once when mounting the component, 
- // ensuring that the plates are automatically obtained at startup.
   useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { data, error: err } = await supabase
+          .from('dishes')
+          .select(`
+            id,
+            name,
+            description,
+            photo_url,
+            region_id,
+            created_at,
+            regions (id, name, lat, lng),
+            ingredients (id, name, quantity)
+          `);
+
+        if (err) {
+          console.error('Supabase error loading dishes:', err);
+          if (mounted) setError(err.message ?? String(err));
+          return;
+        }
+
+        const normalized: Dish[] = (data ?? []).map((d: any) => ({
+          ...d,
+          region: d.regions ?? null, // 👈 ya no lo tratamos como array
+          regionName: d.regions?.name ?? '', // 👈 campo directo para filtrar en Home.tsx
+          ingredients: d.ingredients ?? [],
+        }));
+
+        if (mounted) setDishes(normalized);
+      } catch (e: any) {
+        console.error('Unexpected error loading dishes:', e);
+        if (mounted) setError(e.message ?? String(e));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
     load();
+    return () => { mounted = false; };
   }, []);
 
   return { dishes, loading, error };

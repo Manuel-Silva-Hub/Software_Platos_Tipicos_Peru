@@ -1,14 +1,20 @@
-//Represents a dish in the application.
+// src/models/dish.ts
+// Represents a dish (plato) in the application.
+
+import type { Region } from './region';
+import type { Ingredient } from './ingredient';
+
 export interface Dish {
-  id: number; //Unique plate identifier
-  name: string; //Name of the dish
-  description: string | null; //Description of the dish (can be null if it doesn't have one)
-  photo_url: string | null; //Dish photo URL (can be null if there is no image)
-  region_id: number; //Identifier of the region to which the dish belongs
-  created_at: string; //Date the record was created
-  
-  //Information about the region associated with the dish
-  region: {
-    name: string; //Nombre de la región
-  }[];
+  id: number;
+  name: string;
+  description?: string | null;
+  photo_url?: string | null;
+  region_id?: number | null;
+  regions?: Region[];           // cuando se trae como relación (select regions(...))
+  region?: Region | null;       // o bien cuando traes la región como alias "region:regions(...)"
+  ingredients?: Ingredient[];
+  ingredients_text?: string | null;
+  difficulty?: string | null;
+  prep_time?: number | null;
+  created_at?: string | null;
 }
