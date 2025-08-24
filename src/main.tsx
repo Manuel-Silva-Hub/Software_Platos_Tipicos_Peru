@@ -3,6 +3,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet/dist/leaflet.css';
 
 /**
  * Main entry point - fixed ErrorBoundary implementation

@@ -379,3 +379,37 @@
     border-width: 3px;
   }
 }
+/* Ingredientes - bullets visibles y buen contraste */
+.ingredient-list {
+  margin: 8px 0 0 0;
+  padding-left: 1.1rem; /* deja espacio para las viñetas */
+  list-style: disc;
+  list-style-position: inside;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.ingredient-list li {
+  margin-bottom: 6px;
+}
+
+/* Mejor separación del modal y aseguro contraste interno */
+.modal-content h2 {
+  margin: 0 0 8px 0;
+}
+
+.modal-content p {
+  margin: 0 0 12px 0;
+}
+
+/* En caso de que el theme haga invisibles las viñetas: forzarlas */
+.ingredient-list li::marker {
+  color: var(--color-text-primary);
+}
+
+/* Ajuste para que el contenido (texto) aparezca claramente a la derecha */
+.modal-content img {
+  display: block;
+  border-radius: 8px;
+}
+
