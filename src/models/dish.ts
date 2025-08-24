@@ -10,8 +10,8 @@ export interface Dish {
   description?: string | null;
   photo_url?: string | null;
   region_id?: number | null;
-  regions?: Region[];           // cuando se trae como relación (select regions(...))
-  region?: Region | null;       // o bien cuando traes la región como alias "region:regions(...)"
+  regions?: Region[];           // when fetched as a relation (select regions(...))
+  region?: Region | null;       // or when you bring the region as an alias "region:regions(...)"
   ingredients?: Ingredient[];
   ingredients_text?: string | null;
   difficulty?: string | null;
