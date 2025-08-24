@@ -10,6 +10,8 @@ const Home = lazy(() => import("./views/pages/Home"));
 const Login = lazy(() => import("./views/pages/Login"));
 const Register = lazy(() => import("./views/pages/Register"));
 const ConfirmEmail = lazy(() => import("./views/pages/ConfirmEmail")); // 👈 nueva ruta
+const About = lazy(() => import("./views/pages/About")); 
+const Dishes = lazy(() => import("./views/pages/Dishes"));
 
 // Loading fallback
 const LoadingSpinner = () => (
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/auth/confirm" element={<ConfirmEmail />} /> {/* 👈 nueva ruta */}
+          <Route path="/about" element={<About />} />
+          <Route path="/dishes" element={<Dishes />} />
 
           {/* Ruta protegida para la página principal */}
           <Route
