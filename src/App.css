@@ -1,17 +1,6 @@
 /**
  * Component-specific styles for the application
- * 
- * Features:
- * - Responsive layouts using CSS Grid and Flexbox
- * - Loading states and animations
- * - Component-specific styling for pages and components
- * - Mobile-first responsive design
- * 
- * Changes made:
- * - Added comprehensive component styles
- * - Implemented responsive grid system for dish cards
- * - Enhanced loading and error states
- * - Added proper spacing and visual hierarchy
+ * (Updated: desktop = 3 columns, tablet = 2, mobile = 1)
  */
 
 /* App Root Container */
@@ -159,11 +148,20 @@
   margin-top: var(--space-8);
 }
 
+/* =========================
+   Responsive grid behavior
+   Desktop (>=1024px): 3 columns
+   Tablet  (768-1023): 2 columns
+   Mobile  (<768px): 1 column
+   ========================= */
+
+/* Default desktop layout: 3 columns */
 .dishes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 columnas en PC */
   gap: var(--grid-gap);
   padding: var(--space-4) 0;
+  align-items: start;
 }
 
 /* Dish Card Styles */
@@ -177,6 +175,9 @@
   cursor: pointer;
   position: relative;
   animation: fadeIn 0.6s ease-out forwards;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%; /* ayuda a que todas las cards tengan altura consistente */
 }
 
 .dish-card:hover {
@@ -263,6 +264,10 @@
 /* Dish Content */
 .dish-content {
   padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1; /* empuja el footer hacia abajo si hay espacio */
 }
 
 .dish-header {
@@ -306,79 +311,68 @@
   margin-top: var(--space-4);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* Responsive: Tablet (2 columns) */
+@media (max-width: 1023px) and (min-width: 768px) {
   .dishes-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 columnas en tablet */
+    gap: calc(var(--grid-gap) * 0.9);
+  }
+
+  .dish-image-container {
+    height: 190px;
+  }
+}
+
+/* Responsive: Mobile (1 column) */
+@media (max-width: 767px) {
+  .dishes-grid {
+    grid-template-columns: 1fr; /* 1 columna en móviles */
     gap: var(--space-4);
   }
-  
+
   .home-title {
     font-size: var(--text-4xl);
   }
-  
+
   .home-description {
     font-size: var(--text-lg);
   }
-  
+
   .dish-content {
     padding: var(--space-4);
   }
-  
+
   .dish-image-container {
     height: 160px;
   }
-}
 
-@media (max-width: 480px) {
-  .home-container {
-    padding: var(--space-3);
-  }
-  
-  .home-header {
-    padding: var(--space-4) 0;
-    margin-bottom: var(--space-8);
-  }
-  
-  .home-title {
-    font-size: var(--text-3xl);
-  }
-  
-  .home-description {
-    font-size: var(--text-base);
-  }
-  
-  .dishes-grid {
-    gap: var(--space-3);
-  }
-  
   .dish-card {
     border-radius: var(--radius-lg);
   }
-  
-  .dish-content {
-    padding: var(--space-3);
-  }
 }
 
-/* Animation delays for staggered effect */
-.dish-card:nth-child(1) { animation-delay: 0.1s; }
-.dish-card:nth-child(2) { animation-delay: 0.2s; }
-.dish-card:nth-child(3) { animation-delay: 0.3s; }
-.dish-card:nth-child(4) { animation-delay: 0.4s; }
-.dish-card:nth-child(5) { animation-delay: 0.5s; }
-.dish-card:nth-child(6) { animation-delay: 0.6s; }
+/* Animation delays for staggered effect (extendido para más items) */
+.dish-card:nth-child(1) { animation-delay: 0.05s; }
+.dish-card:nth-child(2) { animation-delay: 0.10s; }
+.dish-card:nth-child(3) { animation-delay: 0.15s; }
+.dish-card:nth-child(4) { animation-delay: 0.20s; }
+.dish-card:nth-child(5) { animation-delay: 0.25s; }
+.dish-card:nth-child(6) { animation-delay: 0.30s; }
+.dish-card:nth-child(7) { animation-delay: 0.35s; }
+.dish-card:nth-child(8) { animation-delay: 0.40s; }
+.dish-card:nth-child(9) { animation-delay: 0.45s; }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .dish-card {
     border-width: 2px;
   }
-  
+
   .dish-card:hover {
     border-width: 3px;
   }
 }
+
 /* Ingredientes - bullets visibles y buen contraste */
 .ingredient-list {
   margin: 8px 0 0 0;
@@ -413,3 +407,16 @@
   border-radius: 8px;
 }
 
+/* Small utility animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
