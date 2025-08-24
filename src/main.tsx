@@ -1,19 +1,17 @@
-import React from 'react';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import App from './App';
-import 'leaflet/dist/leaflet.css';
+import React, { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+import "leaflet/dist/leaflet.css";
+import { AuthProvider } from "./services/AuthContext"; // asegúrate de que está en context y no en services
 
-/**
- * Main entry point - fixed ErrorBoundary implementation
- * - Use a proper class-based ErrorBoundary (React.Component)
- * - Wrap App with ErrorBoundary inside StrictMode
- */
-
+// ErrorBoundary para manejar errores en la UI
 type ErrorBoundaryState = { hasError: boolean };
 
-class ErrorBoundary extends React.Component<{ children?: React.ReactNode }, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<
+  { children?: React.ReactNode },
+  ErrorBoundaryState
+> {
   constructor(props: any) {
     super(props);
     this.state = { hasError: false };
@@ -24,16 +22,17 @@ class ErrorBoundary extends React.Component<{ children?: React.ReactNode }, Erro
   }
 
   componentDidCatch(error: Error, info: any) {
-    // keep console/logging for debugging
-    console.error('Application Error:', error, info);
+    console.error("Application Error:", error, info);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div role="alert" style={{ padding: 24 }}>
-          <h2>Something went wrong</h2>
-          <p>Try reloading the page.</p>
+        <div role="alert" className="p-6 text-center">
+          <h2 className="text-lg font-bold text-red-600">
+            Algo salió mal 😢
+          </h2>
+          <p>Intenta recargar la página.</p>
         </div>
       );
     }
@@ -41,13 +40,19 @@ class ErrorBoundary extends React.Component<{ children?: React.ReactNode }, Erro
   }
 }
 
-const rootElement = document.getElementById('root');
-if (!rootElement) throw new Error('Root element not found. Make sure index.html contains <div id="root"></div>');
+// Render principal
+const rootElement = document.getElementById("root");
+if (!rootElement)
+  throw new Error(
+    'Root element not found. Asegúrate de tener <div id="root"></div> en index.html'
+  );
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <AuthProvider>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </AuthProvider>
   </StrictMode>
 );

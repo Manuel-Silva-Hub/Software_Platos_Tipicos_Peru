@@ -1,38 +1,67 @@
-import { Suspense, lazy } from 'react';
-import './App.css';
+import { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./services/AuthContext";
+import "./App.css";
 
-/**
- * Root App component with code splitting and lazy loading
- * 
- * Features:
- * - Implements code splitting using React.lazy for better performance
- * - Provides loading fallback with Suspense
- * - Maintains clean separation between routing and presentation
- * 
- * Changes made:
- * - Added code splitting with React.lazy
- * - Implemented Suspense with loading state
- * - Enhanced error boundary handling
- * - Improved TypeScript structure
- */
+import PrivateRoute from "./services/PrivateRoute";
 
-// Lazy load the Home component for better performance
-const Home = lazy(() => import('./views/pages/Home'));
+// Lazy load de páginas
+const Home = lazy(() => import("./views/pages/Home"));
+const Login = lazy(() => import("./views/pages/Login"));
+const Register = lazy(() => import("./views/pages/Register"));
+const ConfirmEmail = lazy(() => import("./views/pages/ConfirmEmail")); // 👈 nueva ruta
 
-// Loading component for Suspense fallback
+// Loading fallback
 const LoadingSpinner = () => (
-  <div className="loading-container" role="status" aria-label="Cargando contenido">
-    <div className="loading-spinner" aria-hidden="true"></div>
-    <span className="loading-text">Cargando platos típicos...</span>
+  <div
+    className="flex flex-col items-center justify-center min-h-screen"
+    role="status"
+    aria-label="Cargando contenido"
+  >
+    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <span className="mt-4 text-gray-600">Cargando...</span>
   </div>
 );
 
+// Componente para manejar la ruta raíz
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  // Si está autenticado, va a home; si no, va a login
+  return user ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />;
+};
+
 export default function App() {
   return (
-    <div className="app">
+    <BrowserRouter>
       <Suspense fallback={<LoadingSpinner />}>
-        <Home />
+        <Routes>
+          {/* Ruta raíz que redirige según autenticación */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* Rutas públicas */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/auth/confirm" element={<ConfirmEmail />} /> {/* 👈 nueva ruta */}
+
+          {/* Ruta protegida para la página principal */}
+          <Route
+            path="/home"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Ruta catch-all para URLs no encontradas */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Suspense>
-    </div>
+    </BrowserRouter>
   );
 }
