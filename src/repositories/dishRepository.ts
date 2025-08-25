@@ -63,92 +63,41 @@ export async function getAllDishes(): Promise<Dish[]> {
 //Get reviews - Versión que funciona como antes
 export async function getDishReviews(dishId: number) {
   try {
-    // Método 1: Intentar con JOIN a auth.users (como funcionaba antes)
     const { data, error } = await supabase
       .from('reviews')
-      .select(`
-        id, 
-        dish_id, 
-        user_id, 
-        rating, 
-        comment, 
-        created_at,
-        user:auth.users(id, email)
-      `)
+      .select('*')
       .eq('dish_id', dishId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error with JOIN query:', error);
-      // Si falla el JOIN, usar método alternativo
-      return await getDishReviewsFallback(dishId);
+      console.error('Error fetching reviews:', error);
+      return [];
     }
 
-    if (!data) return [];
+    if (!data || data.length === 0) {
+      return [];
+    }
 
-    // Mapear los datos como funcionaba antes
+    // Mapear con los datos que YA están guardados en la tabla
     const mapped: Review[] = data.map((r: any) => ({
-      id: r.id as number,
-      dish_id: r.dish_id as number,
-      user_id: r.user_id as string,
-      rating: r.rating as number,
-      comment: r.comment as string,
-      created_at: r.created_at as string,
-      user: r.user ? { 
-        id: r.user.id as string, 
-        email: r.user.email as string 
-      } : undefined
+      id: r.id,
+      dish_id: r.dish_id,
+      user_id: r.user_id,
+      rating: r.rating,
+      comment: r.comment,
+      created_at: r.created_at,
+      user: {
+        id: r.user_id,
+        email: r.user_email || 'Usuario',
+        name: r.user_name || r.user_email?.split('@')[0] || 'Usuario'
+      }
     }));
 
     return mapped;
   } catch (err) {
     console.error('Error fetching reviews:', err);
-    // Fallback si hay cualquier error
-    return await getDishReviewsFallback(dishId);
+    return [];
   }
-}
-
-// Método fallback (por si el JOIN no funciona)
-async function getDishReviewsFallback(dishId: number) {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select('id, dish_id, user_id, rating, comment, created_at')
-    .eq('dish_id', dishId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  if (!data) return [];
-
-  // Para cada review, intentar obtener el email del usuario
-  const reviewsWithUsers = await Promise.all(
-    data.map(async (r: any) => {
-      // Intentar obtener datos del usuario actual para verificar si es el mismo
-      const { data: userData } = await supabase.auth.getUser();
-      
-      let userEmail = undefined;
-      
-      // Si el review es del usuario actual, usar su email
-      if (userData?.user && userData.user.id === r.user_id) {
-        userEmail = userData.user.email;
-      }
-
-      return {
-        id: r.id as number,
-        dish_id: r.dish_id as number,
-        user_id: r.user_id as string,
-        rating: r.rating as number,
-        comment: r.comment as string,
-        created_at: r.created_at as string,
-        user: userEmail ? { 
-          id: r.user_id as string, 
-          email: userEmail as string 
-        } : undefined
-      };
-    })
-  );
-
-  return reviewsWithUsers;
 }
 
 //Set review
@@ -159,7 +108,18 @@ export async function addDishReview(dishId: number, rating: number, comment: str
 
   const { error } = await supabase
     .from('reviews')
-    .insert([{ dish_id: dishId, user_id: user.id, rating, comment }]);
+    .insert([{ 
+      dish_id: dishId, 
+      user_id: user.id, 
+      rating, 
+      comment,
+      // CAMPOS NUEVOS - Guardar email y nombre
+      user_email: user.email,
+      user_name: user.user_metadata?.full_name || 
+                user.user_metadata?.name || 
+                user.email?.split('@')[0] || 
+                'Usuario'
+    }]);
   
   if (error) throw error;
   return true;
