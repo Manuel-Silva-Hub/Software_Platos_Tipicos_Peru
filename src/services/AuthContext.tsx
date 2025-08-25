@@ -9,6 +9,11 @@ type SignUpResult = {
   error: AuthError | null;
 };
 
+type ResetResult = {
+  data: any;
+  error: AuthError | null;
+};
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
@@ -18,6 +23,8 @@ type AuthContextType = {
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
+  resetPassword: (email: string) => Promise<ResetResult>;
+  emailJustVerified: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,6 +36,8 @@ const AuthContext = createContext<AuthContextType>({
   refreshSession: async () => {},
   isAuthenticated: false,
   signUp: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({ data: null, error: null }),
+  emailJustVerified: false,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -36,8 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emailJustVerified, setEmailJustVerified] = useState(false);
 
-  // Manejo de errores
   const handleAuthError = (error: AuthError | Error | null) => {
     if (error) {
       console.error('Auth error:', error);
@@ -47,15 +56,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Cerrar sesión: limpiamos estado local INMEDIATAMENTE y llamamos a supabase
   const signOut = async () => {
     setLoading(true);
     setError(null);
-
-    // Optimista: limpiar estado local ya mismo para evitar que la UI muestre contenido privado
     setSession(null);
     setUser(null);
-
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -73,11 +78,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Refrescar sesión manualmente (usa supabase API)
   const refreshSession = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const { data, error } = await supabase.auth.refreshSession();
       if (error) {
@@ -94,25 +97,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // signUp con emailRedirectTo para confirmación
   const signUp = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          emailRedirectTo: `${window.location.origin}/login?verified=true`,
         },
       });
-
       if (error) {
         handleAuthError(error);
         return { data, error };
       }
-
       console.log('SignUp: petición realizada, revisar email para confirmar');
       return { data, error: null };
     } catch (err: any) {
@@ -123,19 +122,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/ResetPassword`;
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+      return { data, error };
+    } catch (err) {
+      return { data: null, error: err as AuthError };
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
-    // Obtener sesión inicial
+    // limpiamos tokens que puedan venir en hash (evita auto-login no deseado)
+    const url = new URL(window.location.href);
+    const hasAccessToken = url.searchParams.get("access_token") || window.location.hash.includes("access_token");
+    if (hasAccessToken) {
+      // reemplazamos el historial para evitar que el app lea tokens desde otras páginas
+      try {
+        const clean = new URL(window.location.origin + window.location.pathname + window.location.search);
+        // preserve verified query param if present
+        if (url.searchParams.get("verified") === "true") clean.searchParams.set("verified", "true");
+        window.history.replaceState({}, document.title, clean.toString());
+        console.log("🧹 Tokens limpiados de URL (previniendo auto-login).");
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const getInitialSession = async () => {
       try {
         setLoading(true);
         setError(null);
-
         const { data, error } = await supabase.auth.getSession();
-
         if (!mounted) return;
-
         if (error) {
           handleAuthError(error);
         } else {
@@ -152,48 +175,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getInitialSession();
 
-    // Escuchar cambios de auth: siempre actualizamos el estado con la nueva sesión
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
-
         console.log('🔐 Auth state change:', event, {
           userEmail: newSession?.user?.email,
           hasSession: !!newSession,
-          isExpired: newSession?.expires_at ? new Date(newSession.expires_at * 1000) < new Date() : false
         });
 
-        // Actualizamos incondicionalmente para evitar problemas de closure/stale state
+        // Si se produce SIGNED_IN pero la URL original contenía un parámetro
+        // de verificación (usuario viene de confirmar cuenta) entonces no
+        // mantener sesión automática: forzamos signOut y marcamos flag para mostrar banner.
+        // Esto evita el caso donde el correo confirma y te deja automáticamente logueado.
+        try {
+          const u = new URL(window.location.href);
+          const verifiedRedirect = u.searchParams.get("verified");
+          if (event === "SIGNED_IN" && verifiedRedirect === "true") {
+            // forzamos cerrar sesión, el usuario deberá iniciar desde login
+            console.log("🛑 SIGNED_IN tras verified=true: forzando signOut y mostrando banner.");
+            await supabase.auth.signOut();
+            setEmailJustVerified(true);
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
+
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setError(null);
-
-        // Ajuste de loading según evento
-        switch (event) {
-          case 'SIGNED_IN':
-            console.log('✅ Usuario autenticado:', newSession?.user?.email);
-            setLoading(false);
-            break;
-          case 'SIGNED_OUT':
-            console.log('🚪 Usuario deslogueado');
-            setLoading(false);
-            break;
-          case 'TOKEN_REFRESHED':
-            console.log('🔄 Token actualizado para:', newSession?.user?.email);
-            break;
-          case 'USER_UPDATED':
-            console.log('👤 Usuario actualizado:', newSession?.user?.email);
-            break;
-          case 'PASSWORD_RECOVERY':
-            console.log('🔑 Recovery de contraseña iniciado');
-            break;
-          case 'INITIAL_SESSION':
-            console.log('📋 Sesión inicial:', newSession?.user?.email);
-            break;
-          default:
-            console.log('🔔 Evento de auth:', event);
-            break;
-        }
+        setLoading(false);
       }
     );
 
@@ -201,11 +215,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       mounted = false;
       try {
         subscription.unsubscribe();
-      } catch (e) {
-        // ignore
-      }
+      } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isAuthenticated = !!user && !!session;
@@ -219,6 +230,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     refreshSession,
     isAuthenticated,
     signUp,
+    resetPassword,
+    emailJustVerified,
   };
 
   return (

@@ -2,14 +2,10 @@
 import React, { memo, useState, useCallback } from 'react';
 import type { Dish } from '../../models/dish';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useRequireAuth } from '../../services/useRequireAuth';
 
 /**
  * DishCard component - Displays individual dish information in an accessible card format
- *
- * - Memoized functional component with explicit props typing
- * - Lazy-loading image with load/error handlers
- * - Accessible attributes (aria-labelledby, aria-describedby)
- * - English header comments kept minimal; UI strings left in Spanish to match project
  */
 
 interface DishCardProps {
@@ -27,11 +23,17 @@ interface ImageLoadingState {
 export const DishCard = memo(function DishCard({ dish, role = 'article', className = '', onOpen }: DishCardProps) {
   const [imageState, setImageState] = useState<ImageLoadingState>({ isLoading: true, hasError: false });
   const [favIds, setFavIds] = useLocalStorage<number[]>('fav_dish_ids', []);
+  const requireAuth = useRequireAuth();
 
   const isFav = favIds?.includes(Number(dish.id));
 
   const toggleFav = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    // Require authentication to toggle favorites (redirects to /login if not)
+    const allowed = requireAuth();
+    if (!allowed) return;
+
     const idNum = Number(dish.id);
     setFavIds((prev) => {
       const next = Array.isArray(prev) ? [...prev] : [];
@@ -40,7 +42,7 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
       else next.push(idNum);
       return next;
     });
-  }, [dish.id, setFavIds]);
+  }, [dish.id, setFavIds, requireAuth]);
 
   const handleOpen = useCallback(() => {
     onOpen?.(dish);
@@ -56,10 +58,8 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
   const handleImageLoad = useCallback(() => setImageState({ isLoading: false, hasError: false }), []);
   const handleImageError = useCallback(() => setImageState({ isLoading: false, hasError: true }), []);
 
-  // Prefer `dish.region` (singular) if existe, si no usar `dish.regions[0]`
   const primaryRegion = (dish as any).region?.name ?? dish.regions?.[0]?.name ?? undefined;
 
-  // Normalizar photo_url para evitar pasar null a <img src={...}>
   const imgSrc = (dish.photo_url ?? undefined) as string | undefined;
   const altText = `${dish.name}${primaryRegion ? ` — ${primaryRegion}` : ''}`;
 
@@ -94,7 +94,6 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
         </button>
       </div>
 
-      {/* Image */}
       {imgSrc ? (
         <figure className="dish-image-container" style={{ margin: 0 }}>
           {imageState.isLoading && (
@@ -145,4 +144,3 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
   );
 });
 DishCard.displayName = 'DishCard';
-

@@ -1,22 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+// src/services/supabaseClient.ts
+import { createClient } from "@supabase/supabase-js";
 
 /**
- Supabase client configuration.
-
- The project URL and public key (anon key) are obtained from the
- environment variables defined in the `.env` file.
- These credentials allow secure communication with the Supabase database
- from the frontend. A `supabase` instance is exported, which will be used throughout the project
- to perform queries (select, insert, update, delete) and handle authentication.
- 
+ * Asegúrate de definir las variables de entorno:
+ * - VITE_SUPABASE_URL
+ * - VITE_SUPABASE_ANON_KEY
+ *
+ * Si usas CRA cambia a process.env.REACT_APP_SUPABASE_URL / REACT_APP_SUPABASE_ANON_KEY
  */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || (process.env.REACT_APP_SUPABASE_URL as string);
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || (process.env.REACT_APP_SUPABASE_ANON_KEY as string);
 
- const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn("Supabase: faltan variables de entorno VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY");
+}
 
-// debug guard: show clear runtime error if faltan las env vars
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase env vars. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env');
-} 
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL || "", SUPABASE_ANON_KEY || "");

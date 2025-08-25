@@ -1,3 +1,4 @@
+// src/views/pages/Login.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signIn } from '../../services/auth';
@@ -9,22 +10,20 @@ export default function Login() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
 
-  // Obtener la ruta de donde vino el usuario (si existe)
+  // De dónde vino el user
   const from = (location.state as any)?.from || '/home';
-  
-  // Estado para mostrar mensaje de usuario registrado (desde state)
+
+  // Banner de registro exitoso
   const [showRegistrationMessage, setShowRegistrationMessage] = useState(false);
 
-  // Detectar query param ?verified=true (cuando el usuario confirma su correo)
+  // Capturar ?verified=true (cuando confirma email)
   const params = new URLSearchParams(location.search);
   const verified = params.get('verified');
 
-  // Verificar si viene desde registro (state) — mantiene tu comportamiento actual
   useEffect(() => {
     const registrationSuccess = (location.state as any)?.registrationSuccess;
     if (registrationSuccess) {
       setShowRegistrationMessage(true);
-      // Limpiar el estado después de 5 segundos
       setTimeout(() => setShowRegistrationMessage(false), 5000);
     }
   }, [location.state]);
@@ -37,20 +36,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Password reset state
+  // Reset password
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // 🔹 Efecto único para manejar redirección cuando el usuario está autenticado
-  // SOLO desde el formulario de login, no desde confirmación de email
+  // Redirigir SOLO si inicia sesión desde formulario y estamos en /login
   useEffect(() => {
-    if (!authLoading && user && !resetMode) {
-      console.log('Login: Usuario autenticado via login, redirigiendo a Home');
+    if (!authLoading && user && !resetMode && location.pathname === '/login') {
+      // si se llegó a /login y el usuario ya está autenticado por el flujo normal,
+      // redirigimos al origen (from)
       navigate(from, { replace: true });
     }
-  }, [authLoading, user, navigate, from, resetMode]);
+  }, [authLoading, user, navigate, from, resetMode, location.pathname]);
 
   const validateEmail = (e: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
@@ -76,7 +75,7 @@ export default function Login() {
         setError(signError.message ?? String(signError));
       } else if (data?.user) {
         console.log('Login: Inicio de sesión exitoso');
-        // La redirección se manejará en el useEffect cuando cambie el estado
+        // Redirección manejada por el useEffect superior (sólo si estamos en /login)
       }
     } catch (err: any) {
       console.error('Login unexpected error', err);
@@ -86,6 +85,7 @@ export default function Login() {
     }
   };
 
+  // reemplazamos handleSendReset para usar redirectTo a ResetPassword
   const handleSendReset = async (ev?: React.FormEvent) => {
     if (ev) ev.preventDefault();
     setResetMessage(null);
@@ -98,14 +98,16 @@ export default function Login() {
     }
 
     try {
+      const redirectUrl = `${window.location.origin}/ResetPassword`;
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: window.location.origin + '/login'
+        redirectTo: redirectUrl
       });
+
       if (resetErr) {
         console.error('Reset error', resetErr);
         setResetMessage(resetErr.message ?? 'No se pudo enviar el correo de recuperación.');
       } else {
-        setResetMessage('Correo de recuperación enviado. Revisa tu bandeja (y spam).');
+        setResetMessage('Correo de recuperación enviado. Revisa tu bandeja.');
       }
     } catch (e: any) {
       console.error('Unexpected reset error', e);
@@ -133,7 +135,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Banner cuando el user confirmó el correo haciendo click en el link del email */}
         {verified && (
           <div role="alert" style={{
             background: '#ecfdf5',
@@ -148,11 +149,11 @@ export default function Login() {
         )}
 
         {showRegistrationMessage && (
-          <div role="alert" aria-live="polite" style={{ 
-            background: '#f0f9ff', 
-            color: '#0369a1', 
-            padding: 12, 
-            borderRadius: 8, 
+          <div role="alert" aria-live="polite" style={{
+            background: '#f0f9ff',
+            color: '#0369a1',
+            padding: 12,
+            borderRadius: 8,
             marginBottom: 16,
             border: '1px solid #7dd3fc'
           }}>
@@ -166,7 +167,6 @@ export default function Login() {
           </div>
         )}
 
-        {/* Login Form */}
         {!resetMode ? (
           <form onSubmit={handleSubmit}>
             <label style={{ display: 'block', marginBottom: 12 }}>
@@ -252,7 +252,6 @@ export default function Login() {
             </button>
           </form>
         ) : (
-          // Reset password UI
           <form onSubmit={handleSendReset}>
             <p style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}>
               Escribe tu correo y te enviaremos un enlace para restablecer la contraseña.

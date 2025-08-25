@@ -5,6 +5,7 @@ import { supabase } from '../../services/supabase';
 import type { Review } from '../../models/review';
 import { getDishReviews } from '../../repositories/dishRepository';
 import { addDishReview } from '../../repositories/dishRepository';
+import { useRequireAuth } from '../../services/useRequireAuth';
 
 type Props = {
   open: boolean;
@@ -22,24 +23,22 @@ type DishDetail = {
   ingredients?: { id: number; name: string; quantity?: string | null }[];
 };
 
-
 export function DishModal({ open, dish, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const requireAuth = useRequireAuth();
 
   const [detail, setDetail] = useState<DishDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [favChecking, setFavChecking] = useState(false);
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open || !dish) {
       setDetail(null);
-      setIsFavorite(false);
       return;
     }
     let mounted = true;
@@ -76,65 +75,39 @@ export function DishModal({ open, dish, onClose }: Props) {
     return () => { mounted = false; };
   }, [open, dish]);
 
-  //UseEffect for the reviews
+  // Load reviews
   useEffect(() => {
-  if (dish) {
-    getDishReviews(dish.id).then(setReviews).catch(console.error);
-  }
-}, [dish]);
+    if (dish) {
+      getDishReviews(dish.id).then(setReviews).catch(console.error);
+    }
+  }, [dish]);
 
-const handleAddReview = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!dish) return;
-  try {
-    await addDishReview(dish.id, newRating, newComment);
-    setNewComment('');
-    setNewRating(5);
-    const updated = await getDishReviews(dish.id);
-    setReviews(updated);
-  } catch (err) {
-    console.error(err);
-  }
-};
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dish) return;
 
-  useEffect(() => {
-    if (!open || !dish) return;
-    let mounted = true;
-    const checkFav = async () => {
-      setFavChecking(true);
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData?.user ?? null;
+    // require login before attempting to add review
+    const allowed = requireAuth();
+    if (!allowed) return; // hook will redirect to /login and save state
 
-        if (user) {
-          const { data: fav, error } = await supabase
-            .from('favorites')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('dish_id', dish.id)
-            .maybeSingle();
+    // small local validation
+    if (!newComment || newComment.trim().length < 2) {
+      return;
+    }
 
-          if (error) {
-            console.error('Error checking favorite:', error);
-            if (mounted) setIsFavorite(false);
-          } else if (mounted) {
-            setIsFavorite(Boolean(fav));
-          }
-        } else {
-          const raw = localStorage.getItem('fav_dish_ids');
-          const favs: number[] = raw ? JSON.parse(raw) : [];
-          if (mounted) setIsFavorite(favs.includes(Number(dish.id)));
-        }
-      } catch (err) {
-        console.error('Error checking favorite state:', err);
-      } finally {
-        if (mounted) setFavChecking(false);
-      }
-    };
-
-    checkFav();
-    return () => { mounted = false; };
-  }, [open, dish]);
+    try {
+      setSubmitting(true);
+      await addDishReview(dish.id, newRating, newComment.trim());
+      setNewComment('');
+      setNewRating(5);
+      const updated = await getDishReviews(dish.id);
+      setReviews(updated);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -154,19 +127,16 @@ const handleAddReview = async (e: React.FormEvent) => {
 
   if (!open || !dish) return null;
 
-  // normalizar imagen y alt
   const imgSrc = (detail?.photo_url ?? dish.photo_url) ?? undefined;
   const altText = (detail?.name ?? dish.name) ?? undefined;
 
-  // regionName: intenta detail.regions, dish.region (si lo tienes), dish.regions
   const regionName =
-  detail?.region?.name ??
-  detail?.regions?.[0]?.name ??
-  dish.region?.name ??
-  dish.regions?.[0]?.name ??
-  'Desconocida';
+    detail?.region?.name ??
+    detail?.regions?.[0]?.name ??
+    (dish as any).region?.name ??
+    dish?.regions?.[0]?.name ??
+    'Desconocida';
 
-  // dedupe ingredientes por (name + quantity) para evitar duplicados en UI
   const uniqueIngredients = (() => {
     const list = detail?.ingredients ?? [];
     const map = new Map<string, { id: number; name: string; quantity?: string | null }>();
@@ -177,67 +147,7 @@ const handleAddReview = async (e: React.FormEvent) => {
     return Array.from(map.values());
   })();
 
-  const handleToggleFavorite = async (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user ?? null;
-
-      if (user) {
-        const { data: existing, error: selectErr } = await supabase
-          .from('favorites')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('dish_id', dish.id)
-          .maybeSingle();
-
-        if (selectErr) {
-          console.error('Error checking favorites:', selectErr);
-          return;
-        }
-
-        if (existing) {
-          const { error: delErr } = await supabase
-            .from('favorites')
-            .delete()
-            .eq('id', existing.id);
-
-          if (delErr) {
-            console.error('Error removing favorite:', delErr);
-            return;
-          }
-          setIsFavorite(false);
-        } else {
-          const { error: insertErr } = await supabase
-            .from('favorites')
-            .insert([{ user_id: user.id, dish_id: Number(dish.id) }]);
-
-          if (insertErr) {
-            console.error('Error adding favorite:', insertErr);
-            return;
-          }
-          setIsFavorite(true);
-        }
-      } else {
-        const raw = localStorage.getItem('fav_dish_ids');
-        const favs: number[] = raw ? JSON.parse(raw) : [];
-        const idNum = Number(dish.id);
-        const idx = favs.indexOf(idNum);
-        if (idx >= 0) {
-          favs.splice(idx, 1);
-          setIsFavorite(false);
-        } else {
-          favs.push(idNum);
-          setIsFavorite(true);
-        }
-        localStorage.setItem('fav_dish_ids', JSON.stringify(favs));
-      }
-    } catch (err) {
-      console.error('Error toggling favorite:', err);
-    }
-  };
-
-    return (
+  return (
     <div
       role="dialog"
       aria-modal="true"
@@ -264,41 +174,23 @@ const handleAddReview = async (e: React.FormEvent) => {
           flexDirection: 'column'
         }}
       >
-        {/* Header fijo con botones */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
           padding: 16,
           borderBottom: '1px solid var(--color-border)',
           flexShrink: 0
         }}>
-          <div />
+          <div /> {/* left spacer */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              onClick={handleToggleFavorite}
-              aria-pressed={isFavorite}
-              aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              disabled={favChecking}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 6,
-                border: '1px solid var(--color-border)',
-                background: isFavorite ? 'var(--color-primary)' : 'transparent',
-                color: isFavorite ? 'white' : 'var(--color-text-primary)',
-                cursor: 'pointer',
-                fontSize: '0.9rem'
-              }}
-            >
-              {isFavorite ? 'Quitar favorito' : 'Agregar a favoritos'}
-            </button>
-
+            {/* FAVORITES REMOVED */}
             <button
               onClick={onClose}
               aria-label="Cerrar diálogo"
               ref={closeButtonRef}
-              style={{ 
-                padding: '8px 16px', 
+              style={{
+                padding: '8px 16px',
                 borderRadius: 6,
                 border: '1px solid var(--color-border)',
                 background: 'var(--color-surface)',
@@ -311,14 +203,7 @@ const handleAddReview = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        {/* Contenido desplazable */}
-        <div style={{ 
-          flex: 1,
-          overflowY: 'auto',
-          padding: 0
-        }}>
-
-          {/* grid: image left, content right (texto más ancho) - estructura original */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '42% 58%', gap: 18, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {imgSrc ? (
@@ -361,19 +246,17 @@ const handleAddReview = async (e: React.FormEvent) => {
                 )}
               </div>
 
-              {/* Reviews section movida aquí - entre región e ingredientes */}
               <div style={{ marginTop: 24, marginBottom: 24, borderTop: '1px solid var(--color-border)', paddingTop: 20 }}>
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>
                   Reviews ({reviews.length})
                 </h3>
 
-                {/* Mostrar reviews */}
                 <div style={{ marginBottom: 20, maxHeight: '200px', overflowY: 'auto' }}>
                   {reviews.length > 0 ? (
                     reviews.map((rev) => (
-                      <div 
-                        key={rev.id} 
-                        style={{ 
+                      <div
+                        key={rev.id}
+                        style={{
                           background: 'var(--color-surface, #6b7280)',
                           border: '1px solid var(--color-border, #6b7280)',
                           borderRadius: 8,
@@ -382,9 +265,9 @@ const handleAddReview = async (e: React.FormEvent) => {
                           boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                         }}
                       >
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
                           marginBottom: 6
                         }}>
@@ -399,9 +282,9 @@ const handleAddReview = async (e: React.FormEvent) => {
                           </div>
                         </div>
                         {rev.comment && (
-                          <p style={{ 
-                            margin: 0, 
-                            fontSize: '0.8rem', 
+                          <p style={{
+                            margin: 0,
+                            fontSize: '0.8rem',
                             lineHeight: 1.3,
                             color: 'var(--color-text-secondary)'
                           }}>
@@ -411,9 +294,9 @@ const handleAddReview = async (e: React.FormEvent) => {
                       </div>
                     ))
                   ) : (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      padding: 16, 
+                    <div style={{
+                      textAlign: 'center',
+                      padding: 16,
                       color: 'var(--color-text-secondary)',
                       fontStyle: 'italic',
                       fontSize: '0.85rem'
@@ -423,8 +306,7 @@ const handleAddReview = async (e: React.FormEvent) => {
                   )}
                 </div>
 
-                {/* Formulario para agregar review */}
-                <div style={{ 
+                <div style={{
                   background: 'var(--color-surface, #6b7280)',
                   border: '1px solid var(--color-border, #6b7280)',
                   borderRadius: 8,
@@ -438,8 +320,8 @@ const handleAddReview = async (e: React.FormEvent) => {
                       <label style={{ fontSize: '0.8rem', fontWeight: '500', minWidth: '50px' }}>
                         Rating:
                       </label>
-                      <select 
-                        value={newRating} 
+                      <select
+                        value={newRating}
                         onChange={(e) => setNewRating(Number(e.target.value))}
                         style={{
                           padding: '4px 8px',
@@ -449,19 +331,19 @@ const handleAddReview = async (e: React.FormEvent) => {
                           background: 'white'
                         }}
                       >
-                        {[1,2,3,4,5].map((n) => (
+                        {[1, 2, 3, 4, 5].map((n) => (
                           <option key={n} value={n}>{n} ⭐</option>
                         ))}
                       </select>
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <label style={{ fontSize: '0.8rem', fontWeight: '500' }}>
                         Comentario:
                       </label>
-                      <textarea 
-                        value={newComment} 
-                        onChange={(e) => setNewComment(e.target.value)} 
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Comparte tu experiencia..."
                         rows={2}
                         style={{
@@ -474,9 +356,10 @@ const handleAddReview = async (e: React.FormEvent) => {
                         }}
                       />
                     </div>
-                    
-                    <button 
+
+                    <button
                       type="submit"
+                      disabled={submitting}
                       style={{
                         alignSelf: 'flex-start',
                         padding: '6px 12px',
@@ -489,7 +372,7 @@ const handleAddReview = async (e: React.FormEvent) => {
                         fontWeight: '500'
                       }}
                     >
-                      Publicar
+                      {submitting ? 'Publicando...' : 'Publicar'}
                     </button>
                   </form>
                 </div>

@@ -1,5 +1,6 @@
+// src/views/pages/Dishes.tsx
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useDishesController } from "../../controllers/useDishesController";
 import { DishCard } from "../components/DishCard";
 import { DishModal } from "../components/DishModal";
@@ -23,14 +24,9 @@ type RegionMarker = {
 
 export default function Dishes() {
   const { dishes, loading, error } = useDishesController();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  // menu fixed + dropdown
-  const [showMenuButton, setShowMenuButton] = useState<boolean>(() => (typeof window !== "undefined" ? window.scrollY < 30 : true));
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+  const location = useLocation();
 
   // Filters (manual)
   const [query, setQuery] = useState("");
@@ -49,95 +45,12 @@ export default function Dishes() {
   const [markersLoading, setMarkersLoading] = useState(false);
   const [markersError, setMarkersError] = useState<string | null>(null);
 
-  const [signingOut, setSigningOut] = useState(false);
-
-  // user meta
+  // user meta (kept minimal if needed elsewhere)
   const userMeta = useMemo(() => {
     if (!user) return {};
     return ((user as any).user_metadata ?? (user as any).userMetadata ?? {}) as Record<string, any>;
   }, [user]);
 
-  const userAvatar = useMemo(() => {
-    return userMeta?.picture || userMeta?.avatar_url || userMeta?.avatar || (user as any)?.avatar_url || null;
-  }, [userMeta, user]);
-
-  const userName = useMemo(() => {
-    const candidates = [
-      userMeta?.name,
-      userMeta?.full_name,
-      userMeta?.given_name && userMeta?.family_name ? `${userMeta.given_name} ${userMeta.family_name}` : null,
-      userMeta?.given_name,
-      userMeta?.preferred_username,
-    ];
-    const name = candidates.find((c) => c && String(c).trim().length > 0);
-    if (name) return String(name);
-    return (user?.email ?? "").split("@")[0] || "Usuario";
-  }, [userMeta, user]);
-
-  // close dropdown on outside click or Escape
-  useEffect(() => {
-    const onDocClick = (ev: MouseEvent) => {
-      const t = ev.target as Node;
-      if (dropdownOpen && dropdownRef.current && !dropdownRef.current.contains(t) && !menuBtnRef.current?.contains(t)) {
-        setDropdownOpen(false);
-      }
-    };
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setDropdownOpen(false);
-    };
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [dropdownOpen]);
-
-  // hide menu button when user scrolls away from top
-  useEffect(() => {
-    const onScroll = () => {
-      const atTop = window.scrollY < 30;
-      setShowMenuButton(atTop);
-      if (!atTop) setDropdownOpen(false);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // load markers
-  useEffect(() => {
-    let mounted = true;
-    const loadMarkers = async () => {
-      setMarkersLoading(true);
-      setMarkersError(null);
-      try {
-        const { data, error } = await supabase.from("regions").select("id, name, lat, lng, dishes(id)").not("lat", "is", null).not("lng", "is", null);
-        if (error) {
-          if (mounted) setMarkersError(String(error.message ?? error));
-          return;
-        }
-        const markers: RegionMarker[] = (data ?? []).map((r: any) => ({
-          id: r.id,
-          name: r.name,
-          lat: Number(r.lat),
-          lng: Number(r.lng),
-          count: Array.isArray(r.dishes) ? r.dishes.length : 0,
-        }));
-        if (mounted) setRegionMarkers(markers);
-      } catch (err) {
-        if (mounted) setMarkersError(String((err as any)?.message ?? err));
-      } finally {
-        if (mounted) setMarkersLoading(false);
-      }
-    };
-    loadMarkers();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // dish processing (same)
   const getRegionName = (d: Dish | any): string => {
     const cand = d?.region?.name ?? (Array.isArray(d?.regions) && d.regions[0]?.name) ?? d?.region_name ?? d?.regionName ?? "";
     return String(cand ?? "").trim();
@@ -229,82 +142,84 @@ export default function Dishes() {
   const openModal = useCallback((d: Dish) => { setActiveDish(d); setModalOpen(true); }, []);
   const closeModal = useCallback(() => { setModalOpen(false); setActiveDish(null); }, []);
 
-  const handleSignOut = useCallback(async () => {
-    setSigningOut(true);
-    try {
-      const res = await signOut();
-      if (res?.error) console.error("Error al cerrar sesión:", res.error);
-    } catch (err) {
-      console.error("Unexpected signOut error", err);
-    } finally {
-      setSigningOut(false);
-      setDropdownOpen(false);
-      navigate("/login", { replace: true });
-    }
-  }, [signOut, navigate]);
+  // load markers
+  useEffect(() => {
+    let mounted = true;
+    const loadMarkers = async () => {
+      setMarkersLoading(true);
+      setMarkersError(null);
+      try {
+        const { data, error } = await supabase.from("regions").select("id, name, lat, lng, dishes(id)").not("lat", "is", null).not("lng", "is", null);
+        if (error) {
+          if (mounted) setMarkersError(String(error.message ?? error));
+          return;
+        }
+        const markers: RegionMarker[] = (data ?? []).map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          lat: Number(r.lat),
+          lng: Number(r.lng),
+          count: Array.isArray(r.dishes) ? r.dishes.length : 0,
+        }));
+        if (mounted) setRegionMarkers(markers);
+      } catch (err) {
+        if (mounted) setMarkersError(String((err as any)?.message ?? err));
+      } finally {
+        if (mounted) setMarkersLoading(false);
+      }
+    };
+    loadMarkers();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  // CSS - menu fixed + dropdown only inside popover; grid unchanged
+  // --- open modal automatically when location.state.openDishId or ?open=ID present ---
+  useEffect(() => {
+    let mounted = true;
+    const tryOpenFromLocation = async () => {
+      try {
+        const stateId = (location.state as any)?.openDishId;
+        const params = new URLSearchParams(location.search);
+        const qId = params.get("open") ? Number(params.get("open")) : null;
+        const idToOpen = typeof stateId === "number" ? stateId : qId;
+        if (!idToOpen) return;
+
+        // if dish is already loaded in `dishes` list, use it
+        const found = Array.isArray(dishes) ? (dishes as any).find((x: any) => Number(x.id) === Number(idToOpen)) : null;
+        if (found) {
+          if (!mounted) return;
+          setActiveDish(found);
+          setModalOpen(true);
+          try { navigate("/dishes", { replace: true, state: {} }); } catch { /*ignore*/ }
+          return;
+        }
+
+        // otherwise fetch single dish row and open modal
+        const { data, error } = await supabase.from("dishes").select("*").eq("id", idToOpen).single();
+        if (error) {
+          console.warn("Could not fetch dish by id:", error);
+          return;
+        }
+        if (!mounted) return;
+        setActiveDish(data as any);
+        setModalOpen(true);
+        try { navigate("/dishes", { replace: true, state: {} }); } catch { /* ignore */ }
+      } catch (err) {
+        console.error("Error opening dish from location:", err);
+      }
+    };
+    tryOpenFromLocation();
+    return () => { mounted = false; };
+  }, [location.state, location.search, dishes, navigate]);
+
+  // CSS - removed local menu styles; keep layout/grid styles
   const css = `
     :root { --pad: 16px; }
     .wrap { min-height: 100vh; }
     .container { max-width: 1200px; margin: 0 auto; padding: var(--pad); box-sizing: border-box; }
 
-    /* menu fixed in corner (does not affect layout flow) */
-    .menu-fixed {
-      position: fixed;
-      left: 16px;
-      top: 16px;
-      z-index: 1200;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: flex-start;
-      pointer-events: auto;
-    }
-    .menu-fixed .menu-btn {
-      width: 46px;
-      height: 46px;
-      border-radius: 10px;
-      background: var(--menu-bg, #0b63ff);
-      color: white;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-      cursor: pointer;
-    }
-
-    /* dropdown popover - positioned relative to fixed button */
-    .user-popover {
-      position: absolute;
-      left: 0;
-      top: 56px;
-      min-width: 220px;
-      background: var(--popover-bg, #ffffff);
-      color: var(--popover-text, #111827);
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(2,6,23,0.4);
-      padding: 12px;
-      display: block;
-    }
-
-    .user-row { display:flex; gap:12px; align-items:center; }
-    .avatar-fallback {
-      width: 56px; height: 56px; border-radius: 50%; background:#e5e7eb; display:flex; align-items:center; justify-content:center; font-weight:700; color:#374151; font-size:20px;
-    }
-    .signout-btn {
-      width:100%;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: none;
-      background: #ef4444;
-      color: white;
-      cursor: pointer;
-    }
-
-    /* header & filters + grid (kept compact) */
+    /* header & filters + grid */
     .header-grid { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: center; margin-bottom: 6px; }
     .title-wrap { text-align:center; }
     .home-title { margin:0; font-size:1.8rem; }
@@ -335,8 +250,6 @@ export default function Dishes() {
     @media (max-width: 640px) {
       .dishes-grid { grid-template-columns: 1fr; }
       .card-wrap img { height:160px; }
-      .menu-fixed { left: 12px; top: 12px; }
-      .user-popover { position: fixed; left: 12px; right: 12px; top: 72px; }
     }
   `;
 
@@ -344,45 +257,8 @@ export default function Dishes() {
     <>
       <style>{css}</style>
 
-      {/* fixed menu (no extra visible avatar or signout unless dropdownOpen) */}
-      <div className="menu-fixed" aria-hidden={false}>
-        <button
-          ref={menuBtnRef}
-          className="menu-btn"
-          aria-label="Abrir menú"
-          onClick={() => setDropdownOpen((s) => !s)}
-          style={{ transform: showMenuButton ? "translateY(0)" : "translateY(-120%)", opacity: showMenuButton ? 1 : 0, transition: "all .22s ease" }}
-        >
-          ☰
-        </button>
-
-        {/* popover only when open */}
-        {dropdownOpen && (
-          <div ref={dropdownRef} className="user-popover" role="dialog" aria-label="Cuenta">
-            <div className="user-row">
-              {userAvatar ? (
-                <img src={userAvatar} alt={userName} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div className="avatar-fallback">{userName.charAt(0).toUpperCase()}</div>
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{/* opcional: no mostramos email */}</div>
-              </div>
-            </div>
-
-            <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "10px 0", borderRadius: 2 }} />
-
-            <button className="signout-btn" onClick={handleSignOut} disabled={signingOut}>
-              {signingOut ? "Cerrando..." : "Cerrar sesión"}
-            </button>
-          </div>
-        )}
-      </div>
-
       <div className="wrap">
         <div className="container">
-
           <TopMenu />
 
           {/* Header (title centered) */}
@@ -459,7 +335,10 @@ export default function Dishes() {
             </>
           )}
 
-          <DishModal open={modalOpen} dish={activeDish} onClose={closeModal} />
+          <DishModal open={modalOpen} dish={activeDish} onClose={() => {
+            closeModal();
+            try { navigate("/dishes", { replace: true, state: {} }); } catch {}
+          }} />
         </div>
       </div>
     </>
