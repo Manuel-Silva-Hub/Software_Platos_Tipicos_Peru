@@ -18,18 +18,18 @@ export default function Home() {
           background: "linear-gradient(120deg, #6b7280, #6b7280)",
         }}
       >
-        <h1 style={{ fontSize: 48, marginBottom: 16 }}>Welcome to Peruvian Cuisine</h1>
+        <h1 style={{ fontSize: 48, marginBottom: 16 }}>Bienvenidos a la Cocina Peruana</h1>
         <p style={{ fontSize: 20, maxWidth: 600, margin: "0 auto", lineHeight: 1.5 }}>
-          Explore the rich culinary traditions of Peru and discover its diverse flavors from
-          the coast, highlands, and jungle.
+          Explore las ricas tradiciones culinarias de Perú y descubra sus diversos sabores de la costa, 
+          la sierra y la selva..
         </p>
       </section>
 
       <section id="about" style={{ padding: "40px 20px", background: "#004F92" }}>
-        <h2 style={{ fontSize: 32, marginBottom: 16 }}>About</h2>
+        <h2 style={{ fontSize: 32, marginBottom: 16 }}>Acerca de</h2>
         <p>
-          This website showcases Peru's rich gastronomy. Learn about its ingredients,
-          history, and cultural significance of each dish.
+          Este sitio web muestra la rica gastronomía de Perú. Aprende sobre sus ingredientes, 
+          historia y significado cultural de cada plato.
         </p>
       </section>
 
