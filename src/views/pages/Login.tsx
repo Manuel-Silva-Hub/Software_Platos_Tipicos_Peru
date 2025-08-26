@@ -1,22 +1,21 @@
 // src/views/pages/Login.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signIn } from '../../services/auth';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../services/AuthContext';
 
+const STORAGE_KEY = 'remembered_emails';
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const redirectUrl = `${window.location.origin}/ResetPassword`;
 
-  // De dónde vino el user
   const from = (location.state as any)?.from || '/home';
 
-  // Banner de registro exitoso
   const [showRegistrationMessage, setShowRegistrationMessage] = useState(false);
-
-  // Capturar ?verified=true (cuando confirma email)
   const params = new URLSearchParams(location.search);
   const verified = params.get('verified');
 
@@ -28,31 +27,94 @@ export default function Login() {
     }
   }, [location.state]);
 
-  const [email, setEmail] = useState('');
+  // estado del formulario
+  const [email, setEmail] = useState(''); // <-- comienza vacío
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // dropdown / remembered emails
+  const [rememberedEmails, setRememberedEmails] = useState<string[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset password
+  // reset password
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // Redirigir SOLO si inicia sesión desde formulario y estamos en /login
+  // cargar correos recordados (pero NO rellenar el campo email)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const arr = raw ? (JSON.parse(raw) as string[]) : [];
+      if (Array.isArray(arr)) setRememberedEmails(arr);
+
+      // IMPORTANT: No rellenamos el input email automáticamente.
+      // setEmail permanecerá vacío hasta que el usuario seleccione un correo.
+    } catch (e) {
+      console.warn('Error reading remembered emails', e);
+    }
+  }, []);
+
+  // cerrar dropdown con clic fuera
+  useEffect(() => {
+    const onDoc = (ev: MouseEvent) => {
+      const t = ev.target as Node;
+      if (
+        dropdownOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(t) &&
+        wrapperRef.current &&
+        !wrapperRef.current.contains(t)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [dropdownOpen]);
+
+  // redirección solo si el usuario inicia sesión desde formulario y estamos en /login
   useEffect(() => {
     if (!authLoading && user && !resetMode && location.pathname === '/login') {
-      // si se llegó a /login y el usuario ya está autenticado por el flujo normal,
-      // redirigimos al origen (from)
       navigate(from, { replace: true });
     }
   }, [authLoading, user, navigate, from, resetMode, location.pathname]);
 
-  const validateEmail = (e: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+  const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+  const saveRememberedEmails = (list: string[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch (e) {
+      console.warn('No se pudo guardar en localStorage', e);
+    }
+  };
+
+  const addRememberedEmail = (em: string) => {
+    const emailNorm = em.trim();
+    if (!emailNorm) return;
+    setRememberedEmails((prev) => {
+      const next = Array.from(new Set([emailNorm, ...prev]));
+      saveRememberedEmails(next);
+      return next;
+    });
+  };
+
+  const removeRememberedEmail = (em: string) => {
+    setRememberedEmails((prev) => {
+      const next = prev.filter((x) => x !== em);
+      saveRememberedEmails(next);
+      if (email === em) setEmail('');
+      return next;
+    });
+  };
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -75,7 +137,8 @@ export default function Login() {
         setError(signError.message ?? String(signError));
       } else if (data?.user) {
         console.log('Login: Inicio de sesión exitoso');
-        // Redirección manejada por el useEffect superior (sólo si estamos en /login)
+        // Solo guardamos si el usuario marcó explícitamente "Recordarme"
+        if (remember) addRememberedEmail(email.trim());
       }
     } catch (err: any) {
       console.error('Login unexpected error', err);
@@ -85,7 +148,6 @@ export default function Login() {
     }
   };
 
-  // reemplazamos handleSendReset para usar redirectTo a ResetPassword
   const handleSendReset = async (ev?: React.FormEvent) => {
     if (ev) ev.preventDefault();
     setResetMessage(null);
@@ -100,7 +162,7 @@ export default function Login() {
     try {
       const redirectUrl = `${window.location.origin}/ResetPassword`;
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: redirectUrl
+        redirectTo: redirectUrl,
       });
 
       if (resetErr) {
@@ -117,8 +179,100 @@ export default function Login() {
     }
   };
 
+  const pickEmail = (em: string) => {
+    setEmail(em);
+    setDropdownOpen(false);
+    // no marcamos automáticamente "remember": el usuario decide marcar la casilla.
+  };
+
+  const handleRememberToggle = (checked: boolean) => {
+    setRemember(checked);
+    if (checked && email && validateEmail(email)) {
+      addRememberedEmail(email.trim());
+    }
+  };
+
+  // filtro para dropdown
+  const inputLower = email.toLowerCase().trim();
+  const filtered = inputLower
+    ? rememberedEmails.filter((e) => e.toLowerCase().includes(inputLower))
+    : rememberedEmails.slice(0, 10);
+
   return (
     <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <style>{`
+        /* Compact dropdown styles */
+        .remember-wrapper { position: relative; }
+        .remember-dropdown {
+          position: absolute;
+          z-index: 2200;
+          top: calc(100% + 6px);
+          left: 0;
+          width: 320px;
+          max-width: calc(100% - 40px);
+          min-width: 200px;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          font-size: 14px;
+        }
+
+        .remember-dropdown .arrow {
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-bottom: 6px solid rgba(9,10,11,1);
+          margin-left: 14px;
+          filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+        }
+
+        .remember-dropdown .menu {
+          background: rgba(9,10,11,1);
+          border-radius: 6px;
+          padding: 6px;
+          box-shadow: 0 8px 20px rgba(2,6,23,0.55);
+          border: 1px solid rgba(255,255,255,0.03);
+          max-height: 180px;
+          overflow-y: auto;
+        }
+
+        .remember-dropdown .item {
+          padding: 8px 10px;
+          border-radius: 6px;
+          margin-bottom: 6px;
+          background: transparent;
+          color: #fff;
+          cursor: pointer;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          line-height: 1.1;
+        }
+        .remember-dropdown .item:hover { background: rgba(255,255,255,0.02); }
+
+        .remember-dropdown .item .label { flex: 1; min-width: 0; font-size: 13.5px; }
+
+        @media (max-width: 640px) {
+          .remember-dropdown {
+            left: 0;
+            right: 0;
+            width: 100%;
+            max-width: none;
+            top: calc(100% + 6px);
+            margin: 0;
+          }
+          .remember-dropdown .arrow { margin-left: 12px; transform: scale(0.95); }
+          .remember-dropdown .menu { border-radius: 8px; padding: 8px; }
+        }
+      `}</style>
+
       <div style={{
         width: 460,
         maxWidth: '96%',
@@ -169,17 +323,55 @@ export default function Login() {
 
         {!resetMode ? (
           <form onSubmit={handleSubmit}>
-            <label style={{ display: 'block', marginBottom: 12 }}>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Correo electrónico"
-                aria-label="Correo electrónico"
-                required
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--color-border)' }}
-              />
-            </label>
+            <div className="remember-wrapper" ref={wrapperRef}>
+              <label style={{ display: 'block', marginBottom: 12 }}>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setDropdownOpen(true); }}
+                  placeholder="Correo electrónico"
+                  aria-label="Correo electrónico"
+                  required
+                  onFocus={() => setDropdownOpen(true)}
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--color-border)', boxSizing: 'border-box' }}
+                />
+              </label>
+
+              {dropdownOpen && filtered.length > 0 && (
+                <div className="remember-dropdown" ref={dropdownRef} role="listbox" aria-label="Correos recordados">
+                  <div className="arrow" />
+                  <div className="menu">
+                    {filtered.map((em) => (
+                      <div
+                        key={em}
+                        role="option"
+                        onMouseDown={(e) => { e.preventDefault(); pickEmail(em); }}
+                        className="item"
+                        title={em}
+                      >
+                        <div className="label">{em}</div>
+                        <button
+                          type="button"
+                          onMouseDown={(ev) => { ev.preventDefault(); removeRememberedEmail(em); }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'rgba(255,255,255,0.9)',
+                            cursor: 'pointer',
+                            marginLeft: 8,
+                            fontSize: 14,
+                            lineHeight: 1
+                          }}
+                          aria-label={`Eliminar ${em}`}
+                        >
+                          ✖
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <label style={{ display: 'block', marginBottom: 12, position: 'relative' }}>
               <input
@@ -219,7 +411,7 @@ export default function Login() {
                 <input
                   type="checkbox"
                   checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
+                  onChange={(e) => handleRememberToggle(e.target.checked)}
                   aria-label="Recordarme"
                 />
                 <span style={{ color: 'var(--color-text-secondary)' }}>Recordarme</span>

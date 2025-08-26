@@ -5,9 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 /**
  * ResetPassword page:
- * - Si la URL contiene access_token & refresh_token (hash o query) los aplica con setSession
- * - Si hay sesión válida, permite al usuario cambiar su contraseña con updateUser({ password })
- * - Si no hay tokens ni sesión, muestra instrucción (link caducado o no usado correctamente)
+ * - Lee tokens desde el fragmento (#access_token=...&refresh_token=...) o desde query (?access_token=...&refresh_token=...)
+ * - Si encuentra access_token + refresh_token llama supabase.auth.setSession(...)
+ * - Si hay sesión válida permite actualizar la contraseña con updateUser({ password })
+ * - Si no hay sesión (enlace inválido/ya usado) muestra instrucciones
  */
 
 export default function ResetPassword() {
@@ -18,11 +19,13 @@ export default function ResetPassword() {
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // nuevo estado para mostrar/ocultar contraseña
+  const [showPassword, setShowPassword] = useState(false);
+
   useEffect(() => {
     let mounted = true;
 
     const parseFromHash = (hash: string) => {
-      // hash may start with #, remove it
       const h = hash.startsWith("#") ? hash.slice(1) : hash;
       const params = new URLSearchParams(h);
       return {
@@ -44,30 +47,29 @@ export default function ResetPassword() {
         const fromHash = parseFromHash(window.location.hash || "");
         const fromQuery = parseFromQuery(window.location.search || "");
 
-        // prefer hash tokens if present
+        // prefer hash tokens if present (Supabase suele devolver tokens en el fragmento)
         const access_token = fromHash.access_token ?? fromQuery.access_token;
         const refresh_token = fromHash.refresh_token ?? fromQuery.refresh_token;
 
         if (access_token && refresh_token) {
-          // both tokens must be strings (not null)
+          // Ambos están presentes: establecer sesión
           const { data, error } = await supabase.auth.setSession({
             access_token,
             refresh_token,
-          } as { access_token: string; refresh_token: string }); // cast safe because checked
+          } as { access_token: string; refresh_token: string });
+
           if (error) {
             console.error("Error setting session from URL tokens:", error);
             if (mounted) {
               setMessage({ type: "error", text: "No se pudo establecer la sesión automáticamente." });
             }
           } else {
-            // session set -> the user can now update password
             if (mounted) {
               setSessionPresent(Boolean(data?.session));
-              setMessage({ type: "info", text: "Sesión establecida. Puedes cambiar tu contraseña." });
+              setMessage({ type: "info", text: "Puedes cambiar tu contraseña." });
             }
           }
 
-          // cleanup URL to remove tokens for safety
           try {
             const clean = new URL(window.location.origin + window.location.pathname);
             window.history.replaceState({}, document.title, clean.toString());
@@ -75,17 +77,16 @@ export default function ResetPassword() {
             // ignore
           }
         } else {
-          // no tokens in URL: check existing session
           const { data } = await supabase.auth.getSession();
           if (data?.session) {
             if (mounted) {
               setSessionPresent(true);
-              setMessage({ type: "info", text: "Se detectó una sesión válida. Puedes cambiar tu contraseña." });
+              setMessage({ type: "info", text: "Puedes cambiar tu contraseña." });
             }
           } else {
             if (mounted) {
               setSessionPresent(false);
-              setMessage({ type: "error", text: "No se detectó sesión. Por favor, utiliza el enlace que te llegó al correo." });
+              setMessage({ type: "error", text: "No se detectó sesión. Utiliza el enlace que te llegó al correo." });
             }
           }
         }
@@ -111,14 +112,13 @@ export default function ResetPassword() {
     setSubmitting(true);
 
     try {
-      // updateUser requiere sesión activa
       const { data, error } = await supabase.auth.updateUser({ password });
       if (error) {
         console.error("Error updating password:", error);
         setMessage({ type: "error", text: error.message || "No se pudo actualizar la contraseña." });
       } else {
         setMessage({ type: "success", text: "Contraseña actualizada correctamente. Ahora puedes iniciar sesión." });
-        // opcional: cerrar sesión y enviar al login
+        // opcional: cerrar sesión local y redirigir al login
         try { await supabase.auth.signOut(); } catch {}
         setTimeout(() => navigate("/login"), 1400);
       }
@@ -147,9 +147,44 @@ export default function ResetPassword() {
 
             {sessionPresent ? (
               <form onSubmit={handleChangePassword}>
-                <label style={{ display: 'block', marginBottom: 12 }}>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva contraseña" required style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                </label>
+                <label style={{ display: 'block', marginBottom: 12, position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Nueva contraseña"
+                  required
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px 44px 12px 14px', 
+                    borderRadius: 8, 
+                    border: '1px solid var(--color-border)' 
+                  }}
+                />
+
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    height: 34,
+                    minWidth: 42,
+                    border: 'none',
+                    background: 'rgba(0,0,0,0.03)',   
+                    color: 'var(--color-text-secondary)',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    padding: '6px 8px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {showPassword ? 'Ocultar' : 'Mostrar'}
+                </button>
+              </label>
 
                 <button type="submit" disabled={submitting} style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontWeight: 700 }}>
                   {submitting ? "Actualizando..." : "Actualizar contraseña"}

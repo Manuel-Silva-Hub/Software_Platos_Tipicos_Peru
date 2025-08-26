@@ -215,7 +215,8 @@ const Home: React.FC = () => {
     try {
       if (signOut && typeof signOut === "function") await signOut();
       else localStorage.clear();
-      navigate("/login");
+      // permanecer en home al cerrar sesión
+      navigate("/", { replace: true });
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
@@ -273,7 +274,6 @@ const Home: React.FC = () => {
 
                   <div className="dish-footer" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={() => goToDish(d.dish_id)} className="home-cta">Ver plato</button>
-                    {/* NOTE: botón Agregar reseña eliminado por petición */}
                   </div>
                 </div>
               </article>

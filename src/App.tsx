@@ -42,7 +42,8 @@ export default function App() {
           <Route path="/auth/confirm" element={<ConfirmEmail />} />
           <Route path="/about" element={<About />} />
           <Route path="/dishes" element={<Dishes />} />
-
+          <Route path="/ResetPassword" element={<ResetPassword />} />
+          
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

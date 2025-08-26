@@ -137,19 +137,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // limpiamos tokens que puedan venir en hash (evita auto-login no deseado)
+    // Detectar si estamos en la ruta de ResetPassword o si la url contiene type=recovery
+    const currentPath = window.location.pathname.toLowerCase();
+    const isResetRoute = currentPath === '/resetpassword' || currentPath === '/resetpassword/';
+
     const url = new URL(window.location.href);
-    const hasAccessToken = url.searchParams.get("access_token") || window.location.hash.includes("access_token");
-    if (hasAccessToken) {
-      // reemplazamos el historial para evitar que el app lea tokens desde otras páginas
+    const hasHashToken = window.location.hash && window.location.hash.includes("access_token");
+    const hasQueryToken = Boolean(url.searchParams.get("access_token"));
+    const hasAnyToken = hasHashToken || hasQueryToken;
+    const isRecovery = (url.searchParams.get("type") || "").toLowerCase().includes("recovery");
+
+    // SOLO limpiar tokens de la URL si NO estamos en ResetPassword y NO es flow de recovery.
+    // Si limpiamos aquí y la URL tenía tokens para ResetPassword, la página no podrá leerlos.
+    if (hasAnyToken && !isResetRoute && !isRecovery) {
       try {
         const clean = new URL(window.location.origin + window.location.pathname + window.location.search);
-        // preserve verified query param if present
+        // preserve verified flag explicitly if present
         if (url.searchParams.get("verified") === "true") clean.searchParams.set("verified", "true");
         window.history.replaceState({}, document.title, clean.toString());
-        console.log("🧹 Tokens limpiados de URL (previniendo auto-login).");
+        console.log("🧹 Tokens limpiados de URL (previniendo auto-login fuera de flows de recovery).");
       } catch (e) {
         // ignore
+      }
+    } else {
+      // si estamos en ResetPassword o recovery token, no tocar la URL: la página ResetPassword se encargará.
+      if (isResetRoute || isRecovery) {
+        console.log("🔎 Reset/recovery detected — no limpiamos tokens de URL para permitir procesamiento.");
       }
     }
 
@@ -183,15 +196,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           hasSession: !!newSession,
         });
 
-        // Si se produce SIGNED_IN pero la URL original contenía un parámetro
-        // de verificación (usuario viene de confirmar cuenta) entonces no
-        // mantener sesión automática: forzamos signOut y marcamos flag para mostrar banner.
-        // Esto evita el caso donde el correo confirma y te deja automáticamente logueado.
+        // Comportamiento para confirmación de correo (verified=true)
+        // Si se detecta SIGNED_IN *y* estamos en verified=true, hacemos signOut forzado para evitar auto-login.
         try {
           const u = new URL(window.location.href);
           const verifiedRedirect = u.searchParams.get("verified");
-          if (event === "SIGNED_IN" && verifiedRedirect === "true") {
-            // forzamos cerrar sesión, el usuario deberá iniciar desde login
+          // no confundir con recovery flow: si es recovery no forzamos logout
+          const isRecoveryNow = (u.searchParams.get("type") || "").toLowerCase().includes("recovery");
+          if (event === "SIGNED_IN" && verifiedRedirect === "true" && !isRecoveryNow) {
             console.log("🛑 SIGNED_IN tras verified=true: forzando signOut y mostrando banner.");
             await supabase.auth.signOut();
             setEmailJustVerified(true);
@@ -204,6 +216,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // ignore
         }
 
+        // Actualizamos estado normalmente
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setError(null);
