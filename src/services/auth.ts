@@ -25,7 +25,7 @@ export async function signUpUser({ email, password, firstName, lastName }: SignU
         last_name: lastName ?? null,
         display_name
       },
-      emailRedirectTo: `${window.location.origin}/login`,
+      emailRedirectTo: "https://68ae67525700080008ae584f--platostipicosperu.netlify.app/login",
     }
   });
 

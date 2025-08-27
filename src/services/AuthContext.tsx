@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+          emailRedirectTo: "https://68ae67525700080008ae584f--platostipicosperu.netlify.app/login?verified=true",
         },
       });
       if (error) {
