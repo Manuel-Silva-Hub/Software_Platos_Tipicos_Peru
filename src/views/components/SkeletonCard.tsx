@@ -1,6 +1,6 @@
 // src/views/components/SkeletonCard.tsx
 /**
- * Simple skeleton placeholder for dish card while loading.
+  Simple skeleton placeholder for dish card while loading.
  */
 
 

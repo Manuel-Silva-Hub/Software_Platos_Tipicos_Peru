@@ -3,10 +3,11 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix de los íconos de Leaflet (porque Vite no resuelve bien los paths por defecto)
+// Fix Leaflet icons (because Vite doesn't resolve paths well by default)
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
+// Setting a default icon for map markers
 const DefaultIcon = L.icon({
   iconUrl,
   shadowUrl: iconShadowUrl,
@@ -14,8 +15,10 @@ const DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+// Defines the default icon for all Leaflet markers
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Type definition (interface) for region markers
 type RegionMarker = {
   id?: number;
   name: string;
@@ -24,11 +27,14 @@ type RegionMarker = {
   count?: number;
 };
 
+// Defining the properties that the MapView component receives
 type Props = {
   regionMarkers: RegionMarker[];
 };
 
+// Main component that displays the map with the region markers
 export function MapView({ regionMarkers }: Props) {
+  // If there are no markers available, a message is displayed instead of the map
   if (!regionMarkers || regionMarkers.length === 0) {
     return (
       <p style={{ textAlign: "center", marginTop: "1rem" }}>
@@ -37,6 +43,7 @@ export function MapView({ regionMarkers }: Props) {
     );
   }
 
+  // Rendering the map with the markers
   return (
     <div style={{ width: "100%", height: "400px", marginTop: "1rem" }}>
       <MapContainer

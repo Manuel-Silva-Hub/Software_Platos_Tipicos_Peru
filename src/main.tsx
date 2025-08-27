@@ -5,7 +5,7 @@ import App from "./App";
 import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "./services/AuthContext"; // asegúrate de que está en context y no en services
 
-// ErrorBoundary para manejar errores en la UI
+// ErrorBoundary to handle errors in the UI
 type ErrorBoundaryState = { hasError: boolean };
 
 class ErrorBoundary extends React.Component<
@@ -40,7 +40,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Render principal
+// Main render
 const rootElement = document.getElementById("root");
 if (!rootElement)
   throw new Error(

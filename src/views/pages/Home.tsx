@@ -36,6 +36,10 @@ const pickStringField = (obj: any, keys: string[]) => {
 
 const isAbsoluteUrl = (s?: string | null) => !!s && /^(https?:)?\/\//i.test(s);
 
+/**
+Resolves the public URL of a file stored in Supabase Storage.
+@returns the public URL if found, or null if it could not be resolved.
+*/
 const resolvePublicUrlFromStorage = (path: string | null) => {
   if (!path) return null;
   const buckets = ["dishes", "photos", "images", "public"];
@@ -53,20 +57,31 @@ const resolvePublicUrlFromStorage = (path: string | null) => {
   return null;
 };
 
+/**
+Home page showing:
+- Recent positive reviews
+- Top-rated dishes
+- Logout button
+*/
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth() as any; // usar signOut desde el contexto
 
+  // Status for positive reviews (>= 4 stars)
   const [goodReviews, setGoodReviews] = useState<ReviewRow[]>([]);
   const [loadingGoodReviews, setLoadingGoodReviews] = useState(true);
   const [goodReviewsError, setGoodReviewsError] = useState<string | null>(null);
 
+  // State for top of dishes
   const [topDishes, setTopDishes] = useState<TopDish[]>([]);
   const [loadingTopDishes, setLoadingTopDishes] = useState(true);
   const [topDishesError, setTopDishesError] = useState<string | null>(null);
 
   const [loggingOut, setLoggingOut] = useState(false);
 
+  /**
+  * Effect: Gets positive reviews from Supabase (rating >= 4 and with comments).
+  */
   useEffect(() => {
     let mounted = true;
     const fetchGoodReviews = async () => {
@@ -74,7 +89,7 @@ const Home: React.FC = () => {
       setGoodReviewsError(null);
       try {
         const { data, error } = await supabase
-          .from<ReviewRow>("reviews")
+          .from("reviews")
           .select("id, dish_id, user_id, rating, comment, created_at, dishes(id, name)")
           .gte("rating", 4)
           .not("comment", "is", null)
@@ -83,7 +98,7 @@ const Home: React.FC = () => {
 
         if (error) throw error;
         if (!mounted) return;
-        setGoodReviews(data ?? []);
+        setGoodReviews((data as ReviewRow[]) ?? []);
       } catch (err: any) {
         console.error("Error fetching good reviews:", err);
         if (!mounted) return;
@@ -98,6 +113,13 @@ const Home: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
+  /**
+  This method calculates the highest-rated dishes from all reviews.
+  - Groups reviews by `dish_id`
+  - Calculates average ratings and number of reviews
+  - Sorts by highest average and then by quantity
+  - Takes the top 3
+  */
   useEffect(() => {
     let mounted = true;
 
@@ -123,6 +145,7 @@ const Home: React.FC = () => {
           return;
         }
 
+        // 1. Group reviews by dish_id
         const map = new Map<number, { sum: number; count: number }>();
         for (const r of reviews as any[]) {
           const did = Number(r.dish_id);
@@ -143,19 +166,23 @@ const Home: React.FC = () => {
           return;
         }
 
+        // 2. Calculate the average for each dish
         const aggregated: TopDish[] = Array.from(map.entries()).map(([dish_id, v]) => ({
           dish_id,
           avgRating: parseFloat((v.sum / v.count).toFixed(2)),
           count: v.count,
         }));
 
+        // 3. Sort by rating and count
         aggregated.sort((a, b) => {
           if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
           return b.count - a.count;
         });
 
+        // 4. Get top 10 candidate ids
         const topCandidateIds = aggregated.slice(0, 10).map((x) => x.dish_id);
 
+        // 5. Get data for those dishes from the `dishes` table
         let dishesData: any[] = [];
         if (topCandidateIds.length) {
           const { data: dishes, error: dishesErr } = await supabase
@@ -170,9 +197,11 @@ const Home: React.FC = () => {
           }
         }
 
+        // 6. Create a map of dish_id -> dish
         const dishesMap = new Map<number, any>();
         (dishesData || []).forEach((d) => dishesMap.set(Number(d.id), d));
 
+        // 7. Combine aggregated data with dish information
         const merged = aggregated
           .map((a) => {
             const dishRow = dishesMap.get(a.dish_id) || {};
@@ -193,6 +222,7 @@ const Home: React.FC = () => {
           })
           .filter(Boolean);
 
+          // 8. Take top 3 final
         const top3 = merged.slice(0, 3);
         if (!mounted) return;
         setTopDishes(top3);
@@ -210,6 +240,11 @@ const Home: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
+  /**
+  This method handles user logout.
+  - Calls signOut of the context (if it exists) or clears localStorage.
+  - Redirects to the home page ("/").
+  */
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -303,16 +338,16 @@ const Home: React.FC = () => {
               <article key={r.id} className="testimonial-card" aria-labelledby={`rev-${r.id}-who`}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                   <div>
-                    <div id={`rev-${r.id}-who`} style={{ fontWeight: 700 }}>
+                    <div id={`rev-${r.id}-who`} style={{ fontWeight: 700, color: "black" }}>
                       {r.dishes?.name ? r.dishes.name : (r.user_id ? `Usuario ${String(r.user_id).slice(0, 8)}` : "Usuario")}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ""}</div>
+                    <div style={{ fontSize: 12, color: "black" }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ""}</div>
                   </div>
 
-                  <div style={{ fontWeight: 700, color: "var(--color-primary)" }}>⭐ {r.rating ?? "—"}</div>
+                  <div style={{ fontWeight: 700, color: "black" }}>⭐ {r.rating ?? "—"}</div>
                 </div>
 
-                <p style={{ marginTop: 10 }}>{r.comment}</p>
+                <p style={{ marginTop: 10, color: "black" }}>{r.comment}</p>
               </article>
             ))}
           </div>

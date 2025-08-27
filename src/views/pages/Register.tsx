@@ -21,9 +21,29 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  /**
+  Validates whether a string is in a valid email format.
+  @param {string} e - Email address to validate.
+  @returns {boolean} `true` if the email is valid, `false` otherwise.
+  */
   const validateEmail = (e: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
+  /**
+  Handles the registration form submission.
+  1. Prevents the browser from reloading.
+  2. Clears previous error and success messages.
+  3. Validates required fields:
+  - First and last name.
+  - Valid email.
+  - Password with at least 6 characters.
+  4. If validation passes:
+  - Attempts to register the user using `signUp`.
+  - Displays a success message and redirects to `/login`.
+  - Displays the corresponding message on error.
+  @param {React.FormEvent} ev - Form submission event.
+  @returns {Promise<void>} Empty promise when the process completes.
+  */
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError(null);
@@ -50,7 +70,7 @@ export default function Register() {
         setError(signError.message ?? String(signError));
       } else {
         setSuccess("Registro OK. Revisa tu correo para confirmar la cuenta.");
-        // navegar a login tras pequeño delay
+        // navigate to login after a short delay
         setTimeout(() => navigate("/login"), 1200);
       }
     } catch (err: any) {

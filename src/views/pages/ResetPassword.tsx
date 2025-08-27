@@ -4,12 +4,12 @@ import { supabase } from "../../services/supabase";
 import { useNavigate } from "react-router-dom";
 
 /**
- * ResetPassword page:
- * - Lee tokens desde el fragmento (#access_token=...&refresh_token=...) o desde query (?access_token=...&refresh_token=...)
- * - Si encuentra access_token + refresh_token llama supabase.auth.setSession(...)
- * - Si hay sesión válida permite actualizar la contraseña con updateUser({ password })
- * - Si no hay sesión (enlace inválido/ya usado) muestra instrucciones
- */
+* ResetPassword page:
+* - Reads tokens from the fragment (#access_token=...&refresh_token=...) or from a query (?access_token=...&refresh_token=...)
+* - If access_token + refresh_token is found, it calls supabase.auth.setSession(...)
+* - If there is a valid session, it allows updating the password with updateUser({ password })
+* - If there is no session (invalid/already used link), it displays instructions
+*/
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -19,12 +19,15 @@ export default function ResetPassword() {
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // nuevo estado para mostrar/ocultar contraseña
+  // new state to show/hide password
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
+    /**
+     Extracts `access_token` and `refresh_token` from the `hash` part of the URL.
+    */
     const parseFromHash = (hash: string) => {
       const h = hash.startsWith("#") ? hash.slice(1) : hash;
       const params = new URLSearchParams(h);
@@ -34,6 +37,9 @@ export default function ResetPassword() {
       };
     };
 
+    /**
+    Extracts `access_token` and `refresh_token` from the query string parameters.
+    */
     const parseFromQuery = (search: string) => {
       const params = new URLSearchParams(search);
       return {
@@ -42,6 +48,14 @@ export default function ResetPassword() {
       };
     };
 
+    /**
+    Attempts to establish the user's session using tokens from the URL (either in the hash or in the query parameters).
+    Flow:
+    1. Extract tokens from the hash or query.
+    2. If they exist, call supabase.auth.setSession.
+    3. If no tokens exist, attempt to retrieve an active session with getSession.
+    4. Update the states of sessionPresent, message, and loading.
+    */
     const trySetSessionFromUrl = async () => {
       try {
         const fromHash = parseFromHash(window.location.hash || "");
@@ -52,7 +66,7 @@ export default function ResetPassword() {
         const refresh_token = fromHash.refresh_token ?? fromQuery.refresh_token;
 
         if (access_token && refresh_token) {
-          // Ambos están presentes: establecer sesión
+          // Both are present: establish session
           const { data, error } = await supabase.auth.setSession({
             access_token,
             refresh_token,
@@ -71,12 +85,14 @@ export default function ResetPassword() {
           }
 
           try {
+            // Clean the URL of tokens
             const clean = new URL(window.location.origin + window.location.pathname);
             window.history.replaceState({}, document.title, clean.toString());
           } catch (e) {
             // ignore
           }
         } else {
+          // No tokens, check if there is an active session
           const { data } = await supabase.auth.getSession();
           if (data?.session) {
             if (mounted) {
@@ -102,6 +118,20 @@ export default function ResetPassword() {
     return () => { mounted = false; };
   }, []);
 
+  /**
+  Handles the user's password change.
+  Flow:
+  1. Prevents form reloading.
+  2. Validates that the new password is at least 6 characters long.
+  3. Calls `supabase.auth.updateUser` to update the password.
+  4. If successful:
+  - Displays a success message.
+  - Signs out locally with `signOut`.
+  - Redirects to login.
+  5. If an error occurs, displays an appropriate message.
+  @param {React.FormEvent} e - Form submit event.
+  @returns {Promise<void>}
+  */
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -118,7 +148,7 @@ export default function ResetPassword() {
         setMessage({ type: "error", text: error.message || "No se pudo actualizar la contraseña." });
       } else {
         setMessage({ type: "success", text: "Contraseña actualizada correctamente. Ahora puedes iniciar sesión." });
-        // opcional: cerrar sesión local y redirigir al login
+        // optional: log out locally and redirect to login
         try { await supabase.auth.signOut(); } catch {}
         setTimeout(() => navigate("/login"), 1400);
       }

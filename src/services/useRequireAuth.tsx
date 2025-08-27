@@ -4,12 +4,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 /**
- * Uso:
- * const requireAuth = useRequireAuth();
- * <button onClick={() => {
- *   if (!requireAuth()) return;
- *   // usuario autenticado: ejecutar acción
- * }}>
+This function forces authentication before allowing access to certain actions or routes. It validates whether the user is authenticated.
+- If an authenticated user is present:
+Executes `onAllowed` if provided, and returns `true`.
+- If no authenticated user is present:
+Redirects to login, saving the current route in `state.from` for later return, and returns `false`.
  */
 export function useRequireAuth() {
   const { user } = useAuth();
@@ -17,13 +16,13 @@ export function useRequireAuth() {
   const location = useLocation();
 
   return useCallback(
-    // Si onAllowed es provisto se ejecuta cuando hay usuario.
+      // If onAllowed is provided it is executed when there is a user.
     (onAllowed?: () => void) => {
       if (user) {
         if (typeof onAllowed === "function") onAllowed();
         return true;
       }
-      // no autenticado -> mandar a login guardando de dónde vino
+      // not authenticated -> send to login saving where it came from
       navigate("/login", { state: { from: location.pathname || "/" }, replace: false });
       return false;
     },

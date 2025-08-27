@@ -5,11 +5,11 @@ import { useAuth } from "../../services/AuthContext";
 import { supabase } from "../../services/supabase";
 
 /**
- * TopMenu:
- * - intenta obtener avatar desde user metadata -> profiles.avatar_url
- * - si no hay, usa ui-avatars.com para generar un avatar por nombre (fallback automático)
- * - si la imagen falla, se muestra un recuadro con la inicial
- */
+TopMenu:
+- attempts to get the avatar from user metadata -> profiles.avatar_url
+- if none exists, uses ui-avatars.com to generate an avatar by name (automatic fallback)
+- if the image fails, a box with the initial is displayed
+*/
 
 export default function TopMenu(): JSX.Element {
   const auth = useAuth() as any;
@@ -25,21 +25,21 @@ export default function TopMenu(): JSX.Element {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // visibilidad por scroll
+  // visibility by scroll
   const [visible, setVisible] = useState(true);
   const lastY = useRef<number>(0);
   const ticking = useRef<boolean>(false);
 
-  // avatar final
+  // final avatar
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  // avatar traído desde tabla profiles (si existe)
+  // avatar brought from the profiles table (if it exists)
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
 
-  // metadata (maneja distintos shape que puede traer supabase)
+  // metadata (handles different shapes that supabase can bring)
   const userMeta = (user?.user_metadata ?? user?.userMetadata ?? {}) as any;
   const rawMeta = (user?.raw_user_meta_data ?? user?.rawUserMetaData ?? {}) as any;
 
-  // construir display name
+  // build display name
   const displayName =
     userMeta?.display_name ||
     rawMeta?.display_name ||
@@ -47,13 +47,13 @@ export default function TopMenu(): JSX.Element {
     (user?.email ? String(user.email).split("@")[0] : "Usuario") ||
     "Usuario";
 
-  // prioridad posibles avatares desde metadata
+  // priority possible avatars from metadata
   const avatarFromMeta =
     (userMeta?.picture || userMeta?.avatar || rawMeta?.picture || rawMeta?.avatar || (user as any)?.avatar_url) ?? null;
 
   const email = (user?.email ?? "") as string;
 
-  // ajustar padding-top del body
+  // adjust padding-top of the body
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -67,7 +67,7 @@ export default function TopMenu(): JSX.Element {
     };
   }, []);
 
-  // si hay user y no hay avatarFromMeta, intentar leer profiles.avatar_url
+  // if there is user and no avatarFromMeta, try to read profiles.avatar_url
   useEffect(() => {
     let mounted = true;
     const fetchProfile = async () => {
@@ -92,7 +92,7 @@ export default function TopMenu(): JSX.Element {
     return () => { mounted = false; };
   }, [user, avatarFromMeta]);
 
-  // construir avatarUrl final: metadata -> profile -> ui-avatars fallback
+  // build final avatarUrl: metadata -> profile -> ui-avatars fallback
   useEffect(() => {
     let mounted = true;
     const build = () => {
@@ -104,7 +104,7 @@ export default function TopMenu(): JSX.Element {
         if (mounted) setAvatarUrl(profileAvatar);
         return;
       }
-      // fallback: usar ui-avatars para garantizar imagen para cualquier usuario
+      // fallback: use ui-avatars to ensure image for any user
       const name = displayName || (email ? email.split("@")[0] : "U");
       const ui = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=253341&color=ffffff&size=256&rounded=true`;
       if (mounted) setAvatarUrl(ui);
@@ -113,7 +113,7 @@ export default function TopMenu(): JSX.Element {
     return () => { mounted = false; };
   }, [avatarFromMeta, profileAvatar, displayName, email]);
 
-  // cerrar popover con clic fuera o ESC
+  // close popover with click outside or ESC
   useEffect(() => {
     const onDoc = (ev: MouseEvent) => {
       const t = ev.target as Node;
@@ -132,7 +132,7 @@ export default function TopMenu(): JSX.Element {
     };
   }, [open]);
 
-  // scroll listener (ocultar/mostrar)
+  // scroll listener (hide/show)
   useEffect(() => {
     lastY.current = window.scrollY || 0;
     const onScroll = () => {
@@ -154,7 +154,7 @@ export default function TopMenu(): JSX.Element {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // si el menu se oculta cerramos popover
+  // if the menu is hidden we close the popover
   useEffect(() => { if (!visible && open) setOpen(false); }, [visible, open]);
 
   const handleSignOut = async () => {
@@ -171,7 +171,7 @@ export default function TopMenu(): JSX.Element {
     } finally {
       setLoading(false);
       setOpen(false);
-      // permanecer en Home al cerrar sesión
+      // stay home when logged out
       navigate("/", { replace: true });
     }
   };
@@ -181,7 +181,7 @@ export default function TopMenu(): JSX.Element {
     navigate("/login", { state: { from: location.pathname } });
   };
 
-  // Avatar component: prueba imagen y si falla muestra inicial
+  // Avatar component: test image and if it fails show initial
   const Avatar: React.FC<{ size?: number }> = ({ size = 80 }) => {
     const initials = String(displayName || "U").trim().charAt(0).toUpperCase();
     const boxStyle: React.CSSProperties = {

@@ -1,5 +1,5 @@
 // src/views/pages/Dishes.tsx
-import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDishesController } from "../../controllers/useDishesController";
 import { DishCard } from "../components/DishCard";
@@ -11,6 +11,11 @@ import { supabase } from "../../services/supabase";
 import { useAuth } from "../../services/AuthContext";
 import TopMenu from "../components/TopMenu";
 import "../../index.css";
+
+/**
+ This page is responsible for displaying, filtering, sorting, and paginating the list of dishes. 
+ It also manages the display of dish details (modal) and the display of region markers on a map.
+*/
 
 const PAGE_SIZE = 8;
 
@@ -44,12 +49,6 @@ export default function Dishes() {
   const [regionMarkers, setRegionMarkers] = useState<RegionMarker[]>([]);
   const [markersLoading, setMarkersLoading] = useState(false);
   const [markersError, setMarkersError] = useState<string | null>(null);
-
-  // user meta (kept minimal if needed elsewhere)
-  const userMeta = useMemo(() => {
-    if (!user) return {};
-    return ((user as any).user_metadata ?? (user as any).userMetadata ?? {}) as Record<string, any>;
-  }, [user]);
 
   const getRegionName = (d: Dish | any): string => {
     const cand = d?.region?.name ?? (Array.isArray(d?.regions) && d.regions[0]?.name) ?? d?.region_name ?? d?.regionName ?? "";

@@ -5,7 +5,7 @@ import ResetPassword from "./views/pages/ResetPassword";
 
 <Route path="/ResetPassword" element={<ResetPassword />} />
 
-// Lazy load de páginas
+// Lazy loading of pages
 const Home = lazy(() => import("./views/pages/Home"));
 const Login = lazy(() => import("./views/pages/Login"));
 const Register = lazy(() => import("./views/pages/Register"));
@@ -30,13 +30,13 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          {/* Landing pública: Home */}
+          {/* Public Landing: Home */}
           <Route path="/" element={<Home />} />
 
-          {/* Alias /home -> redirige a raíz pública (compatibilidad) */}
+          {/* Alias ​​/home -> redirects to public root (compatibility) */}
           <Route path="/home" element={<Navigate to="/" replace />} />
 
-          {/* Rutas públicas */}
+          {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/auth/confirm" element={<ConfirmEmail />} />

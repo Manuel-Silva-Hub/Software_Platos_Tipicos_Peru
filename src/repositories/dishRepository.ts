@@ -10,10 +10,14 @@ type Row = {
   photo_url?: string | null;
   region_id?: number | null;
   created_at?: string | null;
-  // Supabase suele devolver la relación como ARRAY aunque sea 1-a-1.
   region?: Region[] | Region | null;
 };
 
+/**
+This function retrieves all dishes from Supabase. It also retrieves basic information 
+about the dish and its associated region. It also normalizes the data so that `region` 
+is a single object and `regions` is a compatibility array.
+*/
 export async function getAllDishes(): Promise<Dish[]> {
   const { data, error } = await supabase
     .from('dishes')
@@ -60,7 +64,11 @@ export async function getAllDishes(): Promise<Dish[]> {
   });
 }
 
-//Get reviews - Versión que funciona como antes
+/**
+This function retrieves all reviews for a specific dish. It also searches the `reviews` 
+table by `dish_id`. It also returns an array of reviews sorted by creation date (most recent first). 
+Each review includes user information (ID, email, name).
+*/
 export async function getDishReviews(dishId: number) {
   try {
     const { data, error } = await supabase
@@ -78,7 +86,7 @@ export async function getDishReviews(dishId: number) {
       return [];
     }
 
-    // Mapear con los datos que YA están guardados en la tabla
+    // Map with the data already stored in the table
     const mapped: Review[] = data.map((r: any) => ({
       id: r.id,
       dish_id: r.dish_id,
@@ -100,7 +108,11 @@ export async function getDishReviews(dishId: number) {
   }
 }
 
-//Set review
+/**
+This function adds a new review to a dish. It also verifies that the user is authenticated 
+in Supabase. It also inserts a new row into the `reviews` table with the user's data and their 
+comment. Finally, it returns `true` if the insertion was successful.
+*/
 export async function addDishReview(dishId: number, rating: number, comment: string) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
@@ -113,7 +125,6 @@ export async function addDishReview(dishId: number, rating: number, comment: str
       user_id: user.id, 
       rating, 
       comment,
-      // CAMPOS NUEVOS - Guardar email y nombre
       user_email: user.email,
       user_name: user.user_metadata?.full_name || 
                 user.user_metadata?.name || 

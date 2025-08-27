@@ -10,7 +10,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // Mostrar loading mientras se verifica la autenticación
+  // Show loading while authentication is being verified
   if (loading) {
     return (
       <div style={{ 
@@ -26,13 +26,13 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     );
   }
 
-  // Si no hay usuario, redirigir a login guardando la ubicación actual
+  // If there is no user, redirect to login saving the current location
   if (!user) {
     console.log('PrivateRoute: Usuario no autenticado, redirigiendo a login');
     return <Navigate to="/login" state={{ from: location.pathname, registrationSuccess: false }} replace />;
   }
 
-  // Usuario autenticado, mostrar el contenido protegido
+ // Authenticated user, display protected content
   console.log('PrivateRoute: Usuario autenticado, mostrando contenido');
   return <>{children}</>;
 };

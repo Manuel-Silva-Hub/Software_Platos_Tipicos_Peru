@@ -27,8 +27,8 @@ export default function Login() {
     }
   }, [location.state]);
 
-  // estado del formulario
-  const [email, setEmail] = useState(''); // <-- comienza vacío
+  // form status
+  const [email, setEmail] = useState(''); // <-- starts empty
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -48,21 +48,21 @@ export default function Login() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // cargar correos recordados (pero NO rellenar el campo email)
+  // load remembered emails (but DO NOT fill in the email field)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const arr = raw ? (JSON.parse(raw) as string[]) : [];
       if (Array.isArray(arr)) setRememberedEmails(arr);
 
-      // IMPORTANT: No rellenamos el input email automáticamente.
-      // setEmail permanecerá vacío hasta que el usuario seleccione un correo.
+      // IMPORTANT: We don't automatically fill in the email input.
+      // setEmail will remain empty until the user selects an email.
     } catch (e) {
       console.warn('Error reading remembered emails', e);
     }
   }, []);
 
-  // cerrar dropdown con clic fuera
+  // close dropdown on click outside
   useEffect(() => {
     const onDoc = (ev: MouseEvent) => {
       const t = ev.target as Node;
@@ -80,7 +80,7 @@ export default function Login() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [dropdownOpen]);
 
-  // redirección solo si el usuario inicia sesión desde formulario y estamos en /login
+  // redirect only if the user logs in from the form and we are in /login
   useEffect(() => {
     if (!authLoading && user && !resetMode && location.pathname === '/login') {
       navigate(from, { replace: true });
@@ -137,7 +137,7 @@ export default function Login() {
         setError(signError.message ?? String(signError));
       } else if (data?.user) {
         console.log('Login: Inicio de sesión exitoso');
-        // Solo guardamos si el usuario marcó explícitamente "Recordarme"
+        // We only save if the user explicitly checked "Remember me"
         if (remember) addRememberedEmail(email.trim());
       }
     } catch (err: any) {
@@ -182,7 +182,7 @@ export default function Login() {
   const pickEmail = (em: string) => {
     setEmail(em);
     setDropdownOpen(false);
-    // no marcamos automáticamente "remember": el usuario decide marcar la casilla.
+    // we don't automatically check "remember": the user decides to check the box.
   };
 
   const handleRememberToggle = (checked: boolean) => {
@@ -192,7 +192,7 @@ export default function Login() {
     }
   };
 
-  // filtro para dropdown
+  // filter for dropdown
   const inputLower = email.toLowerCase().trim();
   const filtered = inputLower
     ? rememberedEmails.filter((e) => e.toLowerCase().includes(inputLower))

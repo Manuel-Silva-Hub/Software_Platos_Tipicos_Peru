@@ -1,7 +1,13 @@
 // src/views/pages/ConfirmEmail.tsx
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 
+/**
+This React component handles the email confirmation flow after
+the user clicks the link sent via email (e.g., from Supabase).
+While the logic is running, it displays a centered container with a message:
+"Confirming your email..." and a notice that you will be redirected to login.
+*/
 export default function ConfirmEmail() {
   useEffect(() => {
     const handle = async () => {
@@ -10,8 +16,8 @@ export default function ConfirmEmail() {
         const hasTokens = /access_token|refresh_token|type=/.test(hash);
 
         if (hasTokens) {
-          // Si Supabase dejó tokens en la URL, es posible que haya creado sesión automáticamente.
-          // Forzamos signOut para borrar esa sesión automática y evitar entrar directo al Home.
+          // If Supabase left tokens in the URL, it may have automatically created a session.
+          // We force signout to clear that automatic session and prevent direct access to the home page.
           try {
             await supabase.auth.signOut();
             console.log('ConfirmEmail: sesión automática borrada (si existía).');
@@ -22,9 +28,9 @@ export default function ConfirmEmail() {
       } catch (err) {
         console.error('ConfirmEmail: error handling confirmation', err);
       } finally {
-        // Reemplazamos la URL (limpiando hashes/params) y enviamos al login con la flag verified
+        // We replace the URL (cleaning hashes/params) and send it to the login with the verified flag
         const clean = `${window.location.origin}/login?verified=true`;
-        // use replace para no dejar el hash en historial
+        // use replace to not leave the hash in history
         window.location.replace(clean);
       }
     };

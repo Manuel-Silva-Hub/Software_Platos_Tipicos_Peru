@@ -1,9 +1,9 @@
 // src/views/components/Filters.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 type Props = {
-  regions: string[]; // regiones provenientes del Home (pueden estar vacías)
-  value?: string; // region seleccionada (controlada por Home)
+  regions: string[]; // regions coming from Home (can be empty)
+  value?: string; // selected region (controlled by Home)
   onSearch: (q: string) => void;
   onRegionChange: (region: string) => void;
   onSortChange: (sortKey: string) => void;
@@ -28,10 +28,10 @@ export function Filters({
     return () => clearTimeout(t);
   }, [q, onSearch]);
 
-  // default regions we want to always show (even si DB no tiene)
+  // default regions we want to always show (even if DB doesn't have)
   const defaultRegions = ['Costa', 'Sierra', 'Selva'];
 
-  // merge preservando orden y evitando duplicados (case-insensitive)
+  // merge preserving order and avoiding duplicates (case-insensitive)
   const mergedRegions = (() => {
     const map = new Map<string, string>();
     const push = (name: string) => {

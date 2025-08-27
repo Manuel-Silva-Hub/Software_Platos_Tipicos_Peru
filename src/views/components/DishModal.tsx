@@ -43,6 +43,11 @@ export function DishModal({ open, dish, onClose }: Props) {
     }
     let mounted = true;
 
+    /**
+  This section loads a dish's details from Supabase when the modal is open. It retrieves data from the `dishes` 
+  table along with its region and ingredients. It then updates the `detail` state with the information obtained. 
+  It also handles loading and errors.
+  */
     const load = async () => {
       setLoading(true);
       try {
@@ -82,6 +87,12 @@ export function DishModal({ open, dish, onClose }: Props) {
     }
   }, [dish]);
 
+  /**
+  This function handles submitting a new review for a dish. It requires authentication (redirects to `/login` 
+  if the user is not logged in). It also validates that the comment is at least 2 characters long. It then 
+  inserts the review into the database and updates the list of reviews.
+  @param {React.FormEvent} e - Form event (submit).
+  */
   const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dish) return;
@@ -109,6 +120,11 @@ export function DishModal({ open, dish, onClose }: Props) {
     }
   };
 
+  /**
+  This section handles keyboard accessibility for the modal. It closes the modal if the user presses Escape. 
+  It also controls the tab cycle (Tab) to keep focus within the modal.
+  @param {KeyboardEvent} e - Keyboard event.
+  */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

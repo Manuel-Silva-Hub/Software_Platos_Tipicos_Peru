@@ -40,6 +40,10 @@ const AuthContext = createContext<AuthContextType>({
   emailJustVerified: false,
 });
 
+/**
+This is an authentication context provider for Supabase.
+It handles the overall user, session, and authentication state in the app.
+*/
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -47,6 +51,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [emailJustVerified, setEmailJustVerified] = useState(false);
 
+  /**
+  This function handles and saves authentication errors. It also receives Supabase or 
+  generic errors and logs them to the console and in `error`.
+  */
   const handleAuthError = (error: AuthError | Error | null) => {
     if (error) {
       console.error('Auth error:', error);
@@ -56,6 +64,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /**
+  This function closes the current user session. Clears `user` and `session` states, 
+  calls `supabase.auth.signOut`, or returns `{error}`.
+  */
   const signOut = async () => {
     setLoading(true);
     setError(null);
@@ -78,6 +90,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /**
+  This function refreshes the current session (tokens). It calls `supabase.auth.refreshSession`. It then updates `session` and `user`.
+  */
   const refreshSession = async () => {
     setLoading(true);
     setError(null);
@@ -97,6 +112,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /**
+  This function registers a new user with an email address and password. To do this, 
+  use `supabase.auth.signUp`. It also configures a redirect after confirming your email.
+  */
   const signUp = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
@@ -122,6 +141,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /**
+  This function sends an email to reset the password.
+  To do this, use `supabase.auth.resetPasswordForEmail` and set up a redirect to 
+  the `/ResetPassword` page.
+  */
   const resetPassword = async (email: string) => {
     try {
       const redirectUrl = `${window.location.origin}/ResetPassword`;
@@ -134,10 +158,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /**
+  This function clears URL tokens when they're not part of reset/recovery. It also 
+  loads the initial session with `supabase.auth.getSession`, listens for authentication 
+  changes (`onAuthStateChange`), and updates state. It also handles special cases like 
+  email verification (`verified=true`).
+  */
   useEffect(() => {
     let mounted = true;
 
-    // Detectar si estamos en la ruta de ResetPassword o si la url contiene type=recovery
+    // Detect if we are on the ResetPassword path or if the url contains type=recovery
     const currentPath = window.location.pathname.toLowerCase();
     const isResetRoute = currentPath === '/resetpassword' || currentPath === '/resetpassword/';
 
@@ -147,8 +177,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const hasAnyToken = hasHashToken || hasQueryToken;
     const isRecovery = (url.searchParams.get("type") || "").toLowerCase().includes("recovery");
 
-    // SOLO limpiar tokens de la URL si NO estamos en ResetPassword y NO es flow de recovery.
-    // Si limpiamos aquí y la URL tenía tokens para ResetPassword, la página no podrá leerlos.
+    // ONLY clear tokens from the URL if we are NOT in ResetPassword and it is NOT a recovery flow.
+    // If we clear here and the URL had tokens for ResetPassword, the page will not be able to read them.
     if (hasAnyToken && !isResetRoute && !isRecovery) {
       try {
         const clean = new URL(window.location.origin + window.location.pathname + window.location.search);
@@ -160,7 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // ignore
       }
     } else {
-      // si estamos en ResetPassword o recovery token, no tocar la URL: la página ResetPassword se encargará.
+      // if we are in ResetPassword or recovery token, do not touch the URL: the ResetPassword page will take care of it.
       if (isResetRoute || isRecovery) {
         console.log("🔎 Reset/recovery detected — no limpiamos tokens de URL para permitir procesamiento.");
       }
@@ -196,8 +226,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           hasSession: !!newSession,
         });
 
-        // Comportamiento para confirmación de correo (verified=true)
-        // Si se detecta SIGNED_IN *y* estamos en verified=true, hacemos signOut forzado para evitar auto-login.
+        // Email confirmation behavior (verified=true)
+        // If SIGNED_IN is detected *and* verified=true, we force signOut to prevent auto-login.
         try {
           const u = new URL(window.location.href);
           const verifiedRedirect = u.searchParams.get("verified");
@@ -216,7 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // ignore
         }
 
-        // Actualizamos estado normalmente
+        // We update status normally
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setError(null);
@@ -254,6 +284,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/**
+Hook to consume the authentication context. Must be used within an 
+<AuthProvider>, as it throws an error if used outside the provider.
+*/
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

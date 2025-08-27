@@ -1,3 +1,6 @@
+// src/models/Review.ts
+// Represents a review in the application
+
 export interface Review {
   id: number;
   dish_id: number;

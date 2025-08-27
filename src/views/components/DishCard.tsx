@@ -27,6 +27,10 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
 
   const isFav = favIds?.includes(Number(dish.id));
 
+  /**
+  This function toggles a dish's favorite status. It requires authentication (redirects to `/login` if the user isn't logged in). 
+  If the dish is already in favorites, it removes it. If it isn't, it adds it to the list in localStorage.
+  */
   const toggleFav = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
@@ -44,18 +48,32 @@ export const DishCard = memo(function DishCard({ dish, role = 'article', classNa
     });
   }, [dish.id, setFavIds, requireAuth]);
 
+  /**
+  This function handles the dish's opening action (e.g., displaying details in a modal or navigating). 
+  To do this, it calls the `onOpen` callback if it was provided as a prop.
+  */
   const handleOpen = useCallback(() => {
     onOpen?.(dish);
   }, [dish, onOpen]);
 
-  const handleKey = useCallback((e: React.KeyboardEvent) => {
+  /**
+  This function handles keyboard events for accessibility. If the user presses `Enter` or `Space`, `handleOpen` is executed.
+  @param {React.KeyboardEvent} e - Keyboard event.
+  */
+    const handleKey = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleOpen();
     }
   }, [handleOpen]);
 
+  /**
+  This function marks that the dish image has loaded correctly.
+  */
   const handleImageLoad = useCallback(() => setImageState({ isLoading: false, hasError: false }), []);
+  /**
+  This function marks that an error occurred while loading the dish image.
+  */
   const handleImageError = useCallback(() => setImageState({ isLoading: false, hasError: true }), []);
 
   const primaryRegion = (dish as any).region?.name ?? dish.regions?.[0]?.name ?? undefined;
