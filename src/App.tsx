@@ -1,9 +1,8 @@
+// src/App.tsx
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import ResetPassword from "./views/pages/ResetPassword";
-
-<Route path="/ResetPassword" element={<ResetPassword />} />
 
 // Lazy loading of pages
 const Home = lazy(() => import("./views/pages/Home"));
@@ -33,18 +32,23 @@ export default function App() {
           {/* Public Landing: Home */}
           <Route path="/" element={<Home />} />
 
-          {/* Alias ​​/home -> redirects to public root (compatibility) */}
+          {/* Alias /home -> redirects to public root (compatibility) */}
           <Route path="/home" element={<Navigate to="/" replace />} />
 
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/auth/confirm" element={<ConfirmEmail />} />
+
+          {/* Confirmación de email: coincide con el Redirect URL configurado en Supabase */}
+          <Route path="/confirm" element={<ConfirmEmail />} />
+
           <Route path="/about" element={<About />} />
           <Route path="/dishes" element={<Dishes />} />
+
+          {/* Reset password (coincide con tu Redirect URL /ResetPassword) */}
           <Route path="/ResetPassword" element={<ResetPassword />} />
           
-          {/* Catch-all */}
+          {/* Catch-all -> home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
