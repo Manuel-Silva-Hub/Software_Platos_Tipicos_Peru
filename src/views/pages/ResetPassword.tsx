@@ -142,7 +142,7 @@ export default function ResetPassword() {
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         console.error("Error updating password:", error);
         setMessage({ type: "error", text: error.message || "No se pudo actualizar la contraseña." });

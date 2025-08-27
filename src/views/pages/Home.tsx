@@ -3,7 +3,6 @@ import { supabase } from "../../services/supabase";
 import React, { useEffect, useState } from "react";
 import TopMenu from "../components/TopMenu";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../services/AuthContext";
 
 type ReviewRow = {
   id: number;
@@ -65,7 +64,6 @@ Home page showing:
 */
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth() as any; // usar signOut desde el contexto
 
   // Status for positive reviews (>= 4 stars)
   const [goodReviews, setGoodReviews] = useState<ReviewRow[]>([]);
@@ -76,8 +74,6 @@ const Home: React.FC = () => {
   const [topDishes, setTopDishes] = useState<TopDish[]>([]);
   const [loadingTopDishes, setLoadingTopDishes] = useState(true);
   const [topDishesError, setTopDishesError] = useState<string | null>(null);
-
-  const [loggingOut, setLoggingOut] = useState(false);
 
   /**
   * Effect: Gets positive reviews from Supabase (rating >= 4 and with comments).
@@ -240,24 +236,6 @@ const Home: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  /**
-  This method handles user logout.
-  - Calls signOut of the context (if it exists) or clears localStorage.
-  - Redirects to the home page ("/").
-  */
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      if (signOut && typeof signOut === "function") await signOut();
-      else localStorage.clear();
-      // permanecer en home al cerrar sesión
-      navigate("/", { replace: true });
-    } catch (err) {
-      console.error("Logout error:", err);
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   // navegar a /dishes y abrir modal (no requiere login)
   const goToDish = (dishId: number) => {

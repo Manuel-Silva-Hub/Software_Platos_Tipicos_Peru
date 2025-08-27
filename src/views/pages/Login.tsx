@@ -11,7 +11,6 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const redirectUrl = `${window.location.origin}/ResetPassword`;
 
   const from = (location.state as any)?.from || '/home';
 

@@ -8,7 +8,6 @@ import { SkeletonCard } from "../components/SkeletonCard";
 import { MapView } from "../components/MapView";
 import type { Dish } from "../../models/dish";
 import { supabase } from "../../services/supabase";
-import { useAuth } from "../../services/AuthContext";
 import TopMenu from "../components/TopMenu";
 import "../../index.css";
 
@@ -29,7 +28,6 @@ type RegionMarker = {
 
 export default function Dishes() {
   const { dishes, loading, error } = useDishesController();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 

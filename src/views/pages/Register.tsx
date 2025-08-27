@@ -64,7 +64,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const { data, error: signError } = await signUp(email.trim(), password, firstName.trim(), lastName.trim());
+      const { error: signError } = await signUp(email.trim(), password, firstName.trim(), lastName.trim());
       if (signError) {
         console.error("Register signUp error:", signError);
         setError(signError.message ?? String(signError));
