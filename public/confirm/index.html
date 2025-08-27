@@ -1,0 +1,19 @@
+<!-- public/confirm/index.html -->
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Verificando...</title>
+  <meta http-equiv="refresh" content="0; url=/login?verified=true">
+  <script>
+    try { window.location.replace('/login?verified=true'); } catch(e) { window.location.href = '/login?verified=true'; }
+  </script>
+</head>
+<body style="font-family: Arial, sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh;">
+  <div style="text-align:center;">
+    <h2>Confirmando...</h2>
+    <p>Si no te redirige automáticamente, <a href="/login?verified=true">haz clic aquí</a>.</p>
+  </div>
+</body>
+</html>
