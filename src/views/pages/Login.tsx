@@ -30,7 +30,7 @@ export default function Login() {
   useEffect(() => {
     const handleSupabaseHash = async () => {
       try {
-        const hash = window.location.hash || '';
+        const hash =  || '';
         if (!hash) return;
 
         // transform "#access_token=...&refresh_token=...&..." => "access_token=...&refresh_token=..."
@@ -73,7 +73,7 @@ export default function Login() {
 
         // Redirect to a clean URL and show the verified flag (so the UI displays the success message).
         // Use replace to avoid leaving the token-hash in history.
-        const target = `${window.location.origin}/login?verified=true`;
+        const target = `https://platostipicosperu.netlify.app//login?verified=true`;
         window.location.replace(target);
       } catch (e) {
         console.error('Login: error procesando hash de Supabase', e);

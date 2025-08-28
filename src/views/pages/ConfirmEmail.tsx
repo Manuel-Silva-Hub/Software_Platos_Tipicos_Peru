@@ -29,7 +29,7 @@ export default function ConfirmEmail() {
         console.error('ConfirmEmail: error handling confirmation', err);
       } finally {
         // We replace the URL (cleaning hashes/params) and send it to the login with the verified flag
-        const clean = `${window.location.origin}/login?verified=true`;
+        const clean = `https://platostipicosperu.netlify.app//login?verified=true`;
         // use replace to not leave the hash in history
         window.location.replace(clean);
       }
