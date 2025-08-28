@@ -8,8 +8,6 @@ type SignUpPayload = {
   lastName?: string;
 };
 
-const SITE_URL = (import.meta.env.VITE_APP_SITE_URL as string) || 'https://platostipicosperu.netlify.app';
-
 /**
 This function registers a new user in Supabase. It creates a user with `email` and `password`. 
 It then saves additional metadata: `first_name`, `last_name`, and `display_name`. It then configures 

@@ -26,65 +26,6 @@ export default function Login() {
     }
   }, [location.state]);
 
-  // --- NUEVO: manejar hash que envía Supabase (access_token / refresh_token)
-  useEffect(() => {
-    const handleSupabaseHash = async () => {
-      try {
-        const hash =  || '';
-        if (!hash) return;
-
-        // transform "#access_token=...&refresh_token=...&..." => "access_token=...&refresh_token=..."
-        const cleanHash = hash.startsWith('#') ? hash.slice(1) : hash;
-        const h = new URLSearchParams(cleanHash);
-
-        const access_token = h.get('access_token');
-        const refresh_token = h.get('refresh_token');
-        const type = h.get('type'); // e.g. "signup" or "recovery"
-
-        if (!access_token && !refresh_token) return;
-
-        // If we have both tokens, set the session so the user becomes authenticated in the client.
-        // This uses the supabase auth client to persist the session in local storage.
-        if (access_token && refresh_token) {
-          try {
-            // setSession expects an object: { access_token, refresh_token }
-            await supabase.auth.setSession({ access_token, refresh_token });
-            console.log('Login: sesión establecida desde hash.');
-          } catch (err) {
-            console.warn('Login: setSession falló, intentando setAuth como fallback', err);
-            // fallback: try setAuth with just access token (less ideal)
-            try {
-              // @ts-ignore - some versions expose setAuth
-              await supabase.auth.setAuth?.(access_token);
-            } catch (e) {
-              console.warn('Login: fallback setAuth falló', e);
-            }
-          }
-        } else if (access_token && !refresh_token) {
-          // If only access_token is present, try setAuth as a fallback
-          try {
-            // @ts-ignore possible in some versions
-            await supabase.auth.setAuth?.(access_token);
-            console.log('Login: setAuth fallback aplicado.');
-          } catch (e) {
-            console.warn('Login: setAuth fallback falló', e);
-          }
-        }
-
-        // Redirect to a clean URL and show the verified flag (so the UI displays the success message).
-        // Use replace to avoid leaving the token-hash in history.
-        const target = `https://platostipicosperu.netlify.app//login?verified=true`;
-        window.location.replace(target);
-      } catch (e) {
-        console.error('Login: error procesando hash de Supabase', e);
-      }
-    };
-
-    // Run once on mount
-    handleSupabaseHash();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // --- FIN del bloque nuevo
-
   // form status
   const [email, setEmail] = useState(''); // <-- starts empty
   const [password, setPassword] = useState('');
@@ -139,15 +80,11 @@ export default function Login() {
   }, [dropdownOpen]);
 
   // redirect only if the user logs in from the form and we are in /login
-  // IMPORTANT: don't auto-redirect away from /login if the url contains ?verified=true
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const isVerifiedParam = params.get('verified') === 'true';
-
-    if (!authLoading && user && !resetMode && location.pathname === '/login' && !isVerifiedParam) {
+    if (!authLoading && user && !resetMode && location.pathname === '/login') {
       navigate(from, { replace: true });
     }
-  }, [authLoading, user, navigate, from, resetMode, location.pathname, location.search]);
+  }, [authLoading, user, navigate, from, resetMode, location.pathname]);
 
   const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
@@ -222,7 +159,7 @@ export default function Login() {
     }
 
     try {
-      const redirectUrl = `${window.location.origin}/ResetPassword`;
+      const redirectUrl = `https://platostipicosperu.netlify.app/ResetPassword`;
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
         redirectTo: redirectUrl,
       });
