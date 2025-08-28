@@ -51,10 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [emailJustVerified, setEmailJustVerified] = useState(false);
 
-  /**
-  This function handles and saves authentication errors. It also receives Supabase or 
-  generic errors and logs them to the console and in `error`.
-  */
+  const SITE_URL = (import.meta.env.VITE_APP_SITE_URL as string) || 'https://platostipicosperu.netlify.app';
+
   const handleAuthError = (error: AuthError | Error | null) => {
     if (error) {
       console.error('Auth error:', error);
@@ -64,10 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  /**
-  This function closes the current user session. Clears `user` and `session` states, 
-  calls `supabase.auth.signOut`, or returns `{error}`.
-  */
   const signOut = async () => {
     setLoading(true);
     setError(null);
@@ -90,9 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  /**
-  This function refreshes the current session (tokens). It calls `supabase.auth.refreshSession`. It then updates `session` and `user`.
-  */
   const refreshSession = async () => {
     setLoading(true);
     setError(null);
@@ -113,8 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-  This function registers a new user with an email address and password. To do this, 
-  use `supabase.auth.signUp`. It also configures a redirect after confirming your email.
+  signUp: uses production SITE_URL for redirect after verification.
   */
   const signUp = async (email: string, password: string) => {
     setLoading(true);
@@ -124,7 +114,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
         options: {
-          emailRedirectTo: "https://68ae67525700080008ae584f--platostipicosperu.netlify.app/login?verified=true",
+          // Use production site URL (or VITE_APP_SITE_URL) so Supabase redirects users
+          // to the correct final domain after verification.
+          emailRedirectTo: `${SITE_URL}/login`,
         },
       });
       if (error) {
@@ -141,14 +133,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  /**
-  This function sends an email to reset the password.
-  To do this, use `supabase.auth.resetPasswordForEmail` and set up a redirect to 
-  the `/ResetPassword` page.
-  */
   const resetPassword = async (email: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/ResetPassword`;
+      const redirectUrl = `${SITE_URL}/ResetPassword`;
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
@@ -158,16 +145,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  /**
-  This function clears URL tokens when they're not part of reset/recovery. It also 
-  loads the initial session with `supabase.auth.getSession`, listens for authentication 
-  changes (`onAuthStateChange`), and updates state. It also handles special cases like 
-  email verification (`verified=true`).
-  */
   useEffect(() => {
     let mounted = true;
 
-    // Detect if we are on the ResetPassword path or if the url contains type=recovery
     const currentPath = window.location.pathname.toLowerCase();
     const isResetRoute = currentPath === '/resetpassword' || currentPath === '/resetpassword/';
 
@@ -177,22 +157,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const hasAnyToken = hasHashToken || hasQueryToken;
     const isRecovery = (url.searchParams.get("type") || "").toLowerCase().includes("recovery");
 
-    // ONLY clear tokens from the URL if we are NOT in ResetPassword and it is NOT a recovery flow.
-    // If we clear here and the URL had tokens for ResetPassword, the page will not be able to read them.
-    if (hasAnyToken && !isResetRoute && !isRecovery) {
+    // IMPORTANT: Do NOT clear tokens if the user is on /login or /confirm (we want Login/ConfirmEmail to process them).
+    const isLoginRoute = currentPath === '/login' || currentPath === '/confirm';
+
+    if (hasAnyToken && !isResetRoute && !isRecovery && !isLoginRoute) {
       try {
         const clean = new URL(window.location.origin + window.location.pathname + window.location.search);
-        // preserve verified flag explicitly if present
         if (url.searchParams.get("verified") === "true") clean.searchParams.set("verified", "true");
         window.history.replaceState({}, document.title, clean.toString());
-        console.log("🧹 Tokens limpiados de URL (previniendo auto-login fuera de flows de recovery).");
+        console.log("🧹 Tokens limpiados de URL (previniendo auto-login fuera de flows de recovery/login).");
       } catch (e) {
         // ignore
       }
     } else {
-      // if we are in ResetPassword or recovery token, do not touch the URL: the ResetPassword page will take care of it.
       if (isResetRoute || isRecovery) {
         console.log("🔎 Reset/recovery detected — no limpiamos tokens de URL para permitir procesamiento.");
+      }
+      if (isLoginRoute) {
+        console.log("🔎 Login/Confirm route detected — permitimos que el componente procese tokens.");
       }
     }
 
@@ -226,27 +208,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           hasSession: !!newSession,
         });
 
-        // Email confirmation behavior (verified=true)
-        // If SIGNED_IN is detected *and* verified=true, we force signOut to prevent auto-login.
+        // If SIGNED_IN after a verification redirect (verified=true), we want to keep the session
+        // and mark emailJustVerified so UI can show a banner — do NOT force sign out.
         try {
           const u = new URL(window.location.href);
           const verifiedRedirect = u.searchParams.get("verified");
-          // no confundir con recovery flow: si es recovery no forzamos logout
           const isRecoveryNow = (u.searchParams.get("type") || "").toLowerCase().includes("recovery");
           if (event === "SIGNED_IN" && verifiedRedirect === "true" && !isRecoveryNow) {
-            console.log("🛑 SIGNED_IN tras verified=true: forzando signOut y mostrando banner.");
-            await supabase.auth.signOut();
+            console.log("✅ SIGNED_IN tras verified=true: marcando emailJustVerified y preservando sesión.");
             setEmailJustVerified(true);
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
+            // continue to set session below
           }
         } catch (e) {
           // ignore
         }
 
-        // We update status normally
+        // Update status normally
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setError(null);
@@ -284,10 +261,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-/**
-Hook to consume the authentication context. Must be used within an 
-<AuthProvider>, as it throws an error if used outside the provider.
-*/
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

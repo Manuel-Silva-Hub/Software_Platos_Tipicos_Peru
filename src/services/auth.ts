@@ -8,10 +8,12 @@ type SignUpPayload = {
   lastName?: string;
 };
 
+const SITE_URL = (import.meta.env.VITE_APP_SITE_URL as string) || 'https://platostipicosperu.netlify.app';
+
 /**
 This function registers a new user in Supabase. It creates a user with `email` and `password`. 
 It then saves additional metadata: `first_name`, `last_name`, and `display_name`. It then configures 
-confirmation email redirection to `/login`.
+confirmation email redirection to the production /login.
 */
 export async function signUpUser({ email, password, firstName, lastName }: SignUpPayload) {
   const display_name = `${(firstName ?? '').trim()} ${(lastName ?? '').trim()}`.trim() || null;
@@ -25,7 +27,8 @@ export async function signUpUser({ email, password, firstName, lastName }: SignU
         last_name: lastName ?? null,
         display_name
       },
-      emailRedirectTo: "https://68ae67525700080008ae584f--platostipicosperu.netlify.app/login",
+      // use SITE_URL so we always redirect to production login after confirm
+      emailRedirectTo: `${SITE_URL}/login`,
     }
   });
 
