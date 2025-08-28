@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         options: {
           // Use production site URL (or VITE_APP_SITE_URL) so Supabase redirects users
           // to the correct final domain after verification.
-          emailRedirectTo: `${SITE_URL}/login`,
+          emailRedirectTo: `https://platostipicosperu.netlify.app/login`,
         },
       });
       if (error) {

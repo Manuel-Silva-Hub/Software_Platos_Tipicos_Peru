@@ -28,7 +28,7 @@ export async function signUpUser({ email, password, firstName, lastName }: SignU
         display_name
       },
       // use SITE_URL so we always redirect to production login after confirm
-      emailRedirectTo: `${SITE_URL}/login`,
+      emailRedirectTo: `https://platostipicosperu.netlify.app/login`,
     }
   });
 
